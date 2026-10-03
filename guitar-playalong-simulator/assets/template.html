@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>吉他跟弹</title>
+<style>
+:root{
+  --bg:#E9EEEA; --panel:#FBFCFA; --ink:#1C2B27; --mute:#5A6B66; --line:#C9D3CE;
+  --stem:#2C5F4F; --stem-ink:#FFFFFF; --petal:#F2B705; --petal-soft:rgba(242,183,5,.22);
+  --paper:#FFFFFF; --sheet-filter:none; --range:rgba(44,95,79,.55);
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#121917; --panel:#1B2422; --ink:#E4ECE8; --mute:#93A5A0; --line:#33423E;
+    --stem:#7CC4AC; --stem-ink:#0E1614; --petal:#F2B705; --petal-soft:rgba(242,183,5,.28);
+    --paper:#141B19; --sheet-filter:invert(.92) hue-rotate(180deg); --range:rgba(124,196,172,.6);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#121917; --panel:#1B2422; --ink:#E4ECE8; --mute:#93A5A0; --line:#33423E;
+  --stem:#7CC4AC; --stem-ink:#0E1614; --petal:#F2B705; --petal-soft:rgba(242,183,5,.28);
+  --paper:#141B19; --sheet-filter:invert(.92) hue-rotate(180deg); --range:rgba(124,196,172,.6);
+}
+*,*::before,*::after{box-sizing:inherit}
+html{height:100%;scroll-padding-top:env(safe-area-inset-top,0px)}
+body{
+  margin:0;height:100%;background:var(--bg);color:var(--ink);
+  font:14px/1.5 "PingFang SC","Microsoft YaHei","Noto Sans CJK SC","Hiragino Sans GB",sans-serif;
+  display:flex;flex-direction:column;
+}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--stem);outline-offset:2px}
+
+.desk{background:var(--panel);border-bottom:1px solid var(--line);padding:8px 16px 10px;display:grid;gap:8px 20px;
+  grid-template-columns:auto auto 1fr auto;align-items:center}
+.song h1{margin:0;font:600 24px/1.1 "Songti SC","STSong","SimSun","Noto Serif CJK SC",serif;letter-spacing:.12em}
+.song p{margin:2px 0 0;color:var(--mute);font-size:12px}
+.song p span+span{margin-left:1em}
+
+.transport{display:flex;gap:8px}
+.btn{border:1px solid var(--line);background:transparent;border-radius:6px;padding:6px 12px;min-height:34px}
+.btn:hover{border-color:var(--stem)}
+.btn.go{background:var(--stem);color:var(--stem-ink);border-color:var(--stem);font-weight:600;min-width:84px;font-size:15px}
+
+.now{display:flex;align-items:baseline;gap:14px;min-width:0}
+.now .chord{font:600 30px/1 "Songti SC","STSong","SimSun",serif;min-width:3.2em;font-variant-numeric:tabular-nums}
+.now .next{color:var(--mute);white-space:nowrap}
+.now .where{color:var(--mute);white-space:nowrap;font-variant-numeric:tabular-nums}
+.now .gist{color:var(--mute);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.beats{display:inline-flex;gap:5px;align-self:center}
+.beats i{width:9px;height:9px;border-radius:50%;border:1px solid var(--mute)}
+.beats i.on{background:var(--petal);border-color:var(--petal)}
+
+.tempo{display:flex;align-items:center;gap:6px;white-space:nowrap}
+.tempo output{font:600 20px/1 "Songti SC","STSong","SimSun",serif;width:2.4em;text-align:center;font-variant-numeric:tabular-nums}
+.tempo .btn{padding:2px 10px;min-height:30px}
+input[type=range]{accent-color:var(--stem);height:22px}
+.tempo input[type=range]{width:130px}
+
+.row2{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;border-top:1px solid var(--line);padding-top:8px}
+.loop{display:flex;flex-wrap:wrap;gap:6px;align-items:center;border:0;padding:0;margin:0;min-width:0}
+.loop legend{float:left;padding:0;margin-right:8px;color:var(--mute)}
+.chip{border:1px solid var(--line);background:transparent;border-radius:999px;padding:3px 12px;min-height:30px}
+.chip:hover{border-color:var(--stem)}
+.chip[aria-pressed="true"]{background:var(--stem);color:var(--stem-ink);border-color:var(--stem)}
+.custom{display:inline-flex;align-items:center;gap:4px;margin-left:8px;color:var(--mute)}
+.custom input{width:3.4em;border:1px solid var(--line);border-radius:6px;background:transparent;padding:3px 4px;text-align:center;min-height:30px}
+.mix{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;margin-left:auto}
+.ch{display:inline-flex;align-items:center;gap:6px}
+.ch .chip{min-width:4.6em;white-space:nowrap}
+.ch .chip[aria-pressed="false"]{color:var(--mute);text-decoration:line-through}
+.ch input[type=range]{width:60px}
+.check{display:inline-flex;align-items:center;gap:6px}
+.check input{accent-color:var(--stem);width:16px;height:16px}
+.chip.tag{display:inline-flex;align-items:center;justify-content:center;background:var(--stem);color:var(--stem-ink);border-color:var(--stem);cursor:default;white-space:nowrap}
+.ch select{font:inherit;color:inherit;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:3px 6px;min-height:30px}
+.ch .note{color:var(--mute);white-space:nowrap}
+
+.sheet{flex:1;min-height:0;display:flex;justify-content:center;align-items:flex-start;gap:var(--cg,24px);padding:10px 12px 4px;overflow:hidden}
+.sheet.single{flex-direction:column;align-items:center;justify-content:flex-start;overflow-y:auto;gap:var(--rg,8px)}
+.col{display:flex;flex-direction:column;gap:var(--rg,8px)}
+.sheet.single .col{display:contents}
+.sys{position:relative;background:var(--paper);border-radius:3px;flex:none;overflow:hidden}
+.sys img{display:block;width:100%;height:100%;filter:var(--sheet-filter);user-select:none;-webkit-user-drag:none}
+.m{position:absolute;border:0;background:transparent;padding:0;border-radius:2px}
+.m:hover{background:rgba(44,95,79,.10)}
+.m.in::after{content:"";position:absolute;left:1px;right:1px;bottom:0;height:3px;background:var(--range);border-radius:2px}
+.lab{position:absolute;display:none;align-items:center;white-space:nowrap;padding:0 .15em;color:#222;background:#fff;filter:var(--sheet-filter);pointer-events:none;line-height:1;font-family:"PingFang SC","Microsoft YaHei","Noto Sans CJK SC",sans-serif}
+.lyc{position:absolute;display:none;align-items:center;white-space:nowrap;padding:0 .2em;color:#222;background:#fff;filter:var(--sheet-filter);pointer-events:none;line-height:1;z-index:2;font-family:"PingFang SC","Microsoft YaHei","Noto Sans CJK SC",sans-serif}
+.lyc.on{display:flex}
+.lyc.txt{z-index:3;overflow:visible}
+.lyedit .lyc{display:flex;pointer-events:auto;cursor:text;overflow:hidden;outline:1px dashed #2C5F4F;outline-offset:-1px;z-index:3}
+.lyedit .lyc:not(.on){background:transparent}
+.lyedit .lyc:focus{background:#fff;outline:2px solid #2C5F4F;overflow:visible;z-index:4}
+.lypanel{background:var(--panel);border-bottom:1px solid var(--line);padding:6px 16px 8px;font-size:12px;color:var(--mute)}
+.lypanel p{margin:0 0 4px}
+.lypanel p:last-child{margin:4px 0 0}
+.lypanel p:empty{display:none}
+.lypanel .lyact{margin-top:6px;flex-wrap:wrap}
+.lypanel .btn{min-height:28px;padding:3px 10px;font-size:12px;color:var(--ink);white-space:nowrap}
+.lypanel #lyMsg{color:var(--stem);font-weight:600}
+.lypanel div{display:flex;gap:8px;align-items:stretch}
+.lypanel textarea{flex:1;min-width:0;font:12px/1.4 ui-monospace,Consolas,monospace;color:var(--ink);background:transparent;border:1px solid var(--line);border-radius:6px;padding:4px 6px;resize:vertical}
+.hl{z-index:5}.ph{z-index:6}
+.hl{position:absolute;background:var(--petal-soft);pointer-events:none;border-radius:2px;mix-blend-mode:multiply}
+:root[data-theme="dark"] .hl{mix-blend-mode:screen}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .hl{mix-blend-mode:screen}}
+.ph{position:absolute;width:3px;margin-left:-1.5px;background:var(--petal);pointer-events:none;border-radius:2px;box-shadow:0 0 0 1px rgba(0,0,0,.18)}
+.hint{margin:0;padding:2px 16px 8px;color:var(--mute);font-size:12px;text-align:center}
+
+@media (max-width:1100px){
+  .desk{grid-template-columns:1fr auto}
+  .now{grid-column:1/-1;order:3}
+  .tempo{grid-column:1/-1;order:4}
+  .mix{margin-left:0}
+}
+@media (prefers-reduced-motion: reduce){*{scroll-behavior:auto!important}}
+</style>
+</head>
+<body>
+<header class="desk">
+  <div class="song">
+    <h1 id="title"></h1>
+    <p id="credits"></p>
+  </div>
+  <div class="transport">
+    <button class="btn go" id="play">播放</button>
+    <button class="btn" id="rewind" data-i18n="rewind">回到开头</button>
+  </div>
+  <div class="now" aria-live="off">
+    <span class="chord" id="chord"></span>
+    <span class="beats" id="beats" aria-hidden="true"></span>
+    <span class="next" id="next"></span>
+    <span class="where" id="where"></span>
+    <span class="gist" id="gist"></span>
+  </div>
+  <div class="tempo">
+    <span data-i18n="tempo">速度</span>
+    <button class="btn" id="slower">−</button>
+    <output id="bpmOut">100</output>
+    <button class="btn" id="faster">+</button>
+    <input type="range" id="bpm" min="40" max="120" step="1" value="100">
+  </div>
+
+  <div class="row2">
+    <fieldset class="loop">
+      <legend data-i18n="loop">循环</legend>
+      <span id="chips"></span>
+      <span class="custom"><span data-i18n="cA">自选第</span>
+        <input type="number" id="la" ><span data-i18n="cB">到</span>
+        <input type="number" id="lb" ><span data-i18n="cC">小节</span>
+        <button class="chip" id="lset" aria-pressed="false" data-i18n="lset">循环这一段</button>
+      </span>
+    </fieldset>
+    <div class="mix">
+      <span class="ch"><button class="chip" id="mG" aria-pressed="true" data-i18n="acc">伴奏</button><input type="range" id="vG" min="0" max="100" value="80"></span>
+      <span class="ch"><button class="chip" id="mM" aria-pressed="true" data-i18n="mel">旋律</button><input type="range" id="vM" min="0" max="100" value="55"></span>
+      <span class="ch"><button class="chip" id="mC" aria-pressed="true" data-i18n="metro">节拍器</button><input type="range" id="vC" min="0" max="100" value="45"></span>
+      <label class="check"><input type="checkbox" id="pre" checked><span data-i18n="countin">预备拍</span></label>
+      <span class="ch"><label class="chip tag" for="capo" data-i18n="capo">变调夹</label><select id="capo"></select><span class="note" id="keyNow"></span></span>
+      <span class="ch"><label class="chip tag" for="lang">语言 Language</label><select id="lang"></select></span>
+      <button class="chip" id="lyBtn" aria-pressed="false" data-i18n="lyEdit" hidden></button>
+    </div>
+  </div>
+</header>
+
+<section class="lypanel" id="lyPanel" hidden>
+  <p data-i18n="lyHint"></p>
+  <div><textarea id="lyLines" rows="3" spellcheck="false"></textarea><button class="btn" id="lyFill" data-i18n="lyFill"></button><textarea id="lyData" rows="3" spellcheck="false"></textarea><button class="btn" id="lyLoad" data-i18n="lyLoad"></button></div>
+  <div class="lyact"><button class="btn" id="lySave" data-i18n="lySave" hidden></button><button class="btn" id="lyDown" data-i18n="lyDown" hidden></button><button class="btn" id="lyFileBtn" data-i18n="lyFile"></button><input type="file" id="lyFile" accept=".json,application/json,text/plain" hidden><button class="btn" id="lyClr" data-i18n="lyClr"></button><button class="btn" id="lyClrAll" data-i18n="lyClrAll"></button></div>
+  <p id="lyMsg" role="status"></p>
+</section>
+
+<main class="sheet" id="sheet" aria-label="曲谱"></main>
+<p class="hint" data-i18n="hint"></p>
+
+<script>
+"use strict";
+/* 由 build.py 注入：SYS=各行谱面图片条，MEAS=各小节坐标，CW=图片条宽度，S=song.json */
+const SYS=/*SYS*/, MEAS=/*MEAS*/, CW=/*CW*/, S=/*SONG*/;
+
+/* ---------- 界面语言 ---------- */
+const I18N={
+ 'zh-CN':{name:'简体中文',app:'吉他跟弹',play:'播放',pause:'暂停',rewind:'回到开头',tempo:'速度',loop:'循环',all:'全曲',cA:'自选第',cB:'到',cC:'小节',lset:'循环这一段',acc:'伴奏',mel:'旋律',metro:'节拍器',countin:'预备拍',capo:'变调夹',none:'不夹',fret:'{n} 品',key:'实际 {k} 调',next:'下一个 {c}',bar:'第 {n} 小节',pickup:'起拍小节',pass:'第 {n} 遍',looping:'循环 {a}–{b}',hint:'点谱面上任一小节，从那里开始。空格键播放或暂停，左右方向键换小节。',lyEdit:"歌词译文",lyLoad:"载入",lyBad:"文本格式不对，没有载入。",lyPaste:"在这里粘贴你的译文，一行一句，按演唱顺序",lyFill:"按句填入",lyDone:"已填入 {n} 句（本曲共 {t} 个乐句位置）",lyHint:"在歌词行的虚线格里输入当前语言的译文，或在左框整段粘贴后按句填入。只输入 - 表示遮住原文，留空则显示原文。改动会自动暂存在这台设备的浏览器里；要长期保留请点保存或下载。",lySave:"保存到模拟器",lyDown:"下载到本地",lyFile:"从文件载入",lyClr:"清除本语言译文",lyClrAll:"清除全部译文",lySure:"再点一次确认",lySaved:"已保存到模拟器，用同一账号在别的设备打开也能看到",lyFail:"没有保存成功，译文仍留在这台设备的浏览器里",lyDowned:"已交给浏览器保存",lyCleared:"已清除，恢复显示原歌词",lyLoaded:"已载入",sec:{}},
+ 'zh-TW':{name:'繁體中文',app:'吉他跟彈',play:'播放',pause:'暫停',rewind:'回到開頭',tempo:'速度',loop:'循環',all:'全曲',cA:'自選第',cB:'到',cC:'小節',lset:'循環這一段',acc:'伴奏',mel:'旋律',metro:'節拍器',countin:'預備拍',capo:'變調夾',none:'不夾',fret:'{n} 品',key:'實際 {k} 調',next:'下一個 {c}',bar:'第 {n} 小節',pickup:'起拍小節',pass:'第 {n} 遍',looping:'循環 {a}–{b}',hint:'點譜面上任一小節，從那裡開始。空白鍵播放或暫停，左右方向鍵換小節。',lyEdit:"歌詞譯文",lyLoad:"載入",lyBad:"文字格式不對，沒有載入。",lyPaste:"在這裡貼上你的譯文，一行一句，按演唱順序",lyFill:"按句填入",lyDone:"已填入 {n} 句（本曲共 {t} 個樂句位置）",lyHint:"在歌詞行的虛線格裡輸入目前語言的譯文，或在左框整段貼上後按句填入。只輸入 - 表示遮住原文，留空則顯示原文。改動會自動暫存在這台裝置的瀏覽器裡；要長期保留請點儲存或下載。",lySave:"儲存到模擬器",lyDown:"下載到本機",lyFile:"從檔案載入",lyClr:"清除本語言譯文",lyClrAll:"清除全部譯文",lySure:"再點一次確認",lySaved:"已儲存到模擬器，用同一帳號在別的裝置開啟也能看到",lyFail:"沒有儲存成功，譯文仍留在這台裝置的瀏覽器裡",lyDowned:"已交給瀏覽器儲存",lyCleared:"已清除，恢復顯示原歌詞",lyLoaded:"已載入",sec:{'结尾':'結尾','间奏':'間奏','结尾副歌':'結尾副歌'}},
+ 'en':{name:'English',app:'Guitar Play-along',play:'Play',pause:'Pause',rewind:'Back to start',tempo:'Tempo',loop:'Loop',all:'Full song',cA:'Bars',cB:'to',cC:'',lset:'Loop these bars',acc:'Guitar',mel:'Melody',metro:'Metronome',countin:'Count-in',capo:'Capo',none:'None',fret:'Fret {n}',key:'Sounds in {k}',next:'Next {c}',bar:'Bar {n}',pickup:'Pickup bar',pass:'Pass {n}',looping:'Loop {a}–{b}',hint:'Click any bar on the sheet to start there. Space plays or pauses; the left and right arrows change bars.',lyEdit:"Lyric translation",lyLoad:"Load",lyBad:"That text could not be read, so nothing was loaded.",lyPaste:"Paste your translation here, one sung line per row, in singing order",lyFill:"Fill by line",lyDone:"Filled {n} lines ({t} phrase slots in this song)",lyHint:"Type your translation into the dashed boxes on the lyric lines, or paste it whole on the left and fill by line. A single - hides the original; an empty box shows it. Changes are kept in this browser as you go; use Save or Download to keep them for good.",lySave:"Save to simulator",lyDown:"Download",lyFile:"Load from file",lyClr:"Clear this language",lyClrAll:"Clear all",lySure:"Click again to confirm",lySaved:"Saved to the simulator; it will also appear on other devices under the same account",lyFail:"Not saved; your text is still kept in this browser",lyDowned:"Handed to the browser to save",lyCleared:"Cleared; the original lyrics are showing again",lyLoaded:"Loaded",sec:{'结尾':'Ending','前奏':'Intro','主歌':'Verse','副歌':'Chorus','间奏':'Interlude','结尾副歌':'Final chorus','尾奏':'Outro','桥段':'Bridge'}},
+ 'ja':{name:'日本語',app:'ギター練習',play:'再生',pause:'一時停止',rewind:'最初へ',tempo:'テンポ',loop:'ループ',all:'全曲',cA:'小節',cB:'〜',cC:'',lset:'この範囲をループ',acc:'伴奏',mel:'メロディ',metro:'メトロノーム',countin:'カウント',capo:'カポ',none:'なし',fret:'{n}フレット',key:'実音 {k}',next:'次 {c}',bar:'第{n}小節',pickup:'アウフタクト',pass:'{n}回目',looping:'ループ {a}–{b}',hint:'楽譜の小節をクリックするとそこから始まります。スペースで再生・一時停止、左右キーで小節を移動します。',lyEdit:"歌詞の訳",lyLoad:"読み込む",lyBad:"テキストを読み取れなかったため、読み込みませんでした。",lyPaste:"ここに訳を貼り付けます。1行に1フレーズ、歌う順に",lyFill:"行ごとに入力",lyDone:"{n} 行を入力しました（この曲のフレーズ枠は {t} 個）",lyHint:"歌詞の行の点線枠に訳を入力するか、左の欄にまとめて貼り付けて行ごとに入力します。- だけなら原文を隠し、空欄なら原文を表示します。変更はこのブラウザに自動で一時保存されます。残しておくには保存またはダウンロードを使ってください。",lySave:"シミュレーターに保存",lyDown:"ダウンロード",lyFile:"ファイルから読み込む",lyClr:"この言語の訳を消去",lyClrAll:"すべての訳を消去",lySure:"もう一度押して確定",lySaved:"シミュレーターに保存しました。同じアカウントなら別の端末でも表示されます",lyFail:"保存できませんでした。訳はこのブラウザに残っています",lyDowned:"ブラウザに保存を渡しました",lyCleared:"消去しました。原文の歌詞に戻りました",lyLoaded:"読み込みました",sec:{'结尾':'エンディング','前奏':'イントロ','主歌':'Aメロ','副歌':'サビ','间奏':'間奏','结尾副歌':'ラストサビ','尾奏':'アウトロ','桥段':'ブリッジ'}},
+ 'ko':{name:'한국어',app:'기타 연습',play:'재생',pause:'일시정지',rewind:'처음으로',tempo:'템포',loop:'반복',all:'전곡',cA:'마디',cB:'~',cC:'',lset:'이 구간 반복',acc:'반주',mel:'멜로디',metro:'메트로놈',countin:'예비박',capo:'카포',none:'없음',fret:'{n}프렛',key:'실제 {k}조',next:'다음 {c}',bar:'{n}마디',pickup:'못갖춘마디',pass:'{n}번째',looping:'반복 {a}–{b}',hint:'악보의 마디를 클릭하면 그 자리에서 시작합니다. 스페이스바로 재생·일시정지, 좌우 방향키로 마디를 이동합니다.',lyEdit:"가사 번역",lyLoad:"불러오기",lyBad:"텍스트를 읽을 수 없어 불러오지 않았습니다.",lyPaste:"여기에 번역을 붙여 넣으세요. 한 줄에 한 구절, 부르는 순서대로",lyFill:"줄별로 채우기",lyDone:"{n}줄을 채웠습니다(이 곡의 구절 칸은 {t}개)",lyHint:"가사 줄의 점선 칸에 번역을 입력하거나, 왼쪽 칸에 통째로 붙여 넣고 줄별로 채우세요. - 만 입력하면 원문을 가리고, 비워 두면 원문이 보입니다. 변경 내용은 이 브라우저에 자동으로 임시 저장됩니다. 오래 보관하려면 저장 또는 내려받기를 누르세요.",lySave:"시뮬레이터에 저장",lyDown:"내려받기",lyFile:"파일에서 불러오기",lyClr:"이 언어 번역 지우기",lyClrAll:"모든 번역 지우기",lySure:"한 번 더 눌러 확인",lySaved:"시뮬레이터에 저장했습니다. 같은 계정이면 다른 기기에서도 보입니다",lyFail:"저장하지 못했습니다. 번역은 이 브라우저에 남아 있습니다",lyDowned:"브라우저에 저장을 넘겼습니다",lyCleared:"지웠습니다. 원래 가사가 다시 보입니다",lyLoaded:"불러왔습니다",sec:{'结尾':'엔딩','前奏':'전주','主歌':'벌스','副歌':'후렴','间奏':'간주','结尾副歌':'마지막 후렴','尾奏':'후주','桥段':'브리지'}},
+ 'es':{name:'Español',app:'Guitarra para practicar',play:'Reproducir',pause:'Pausa',rewind:'Al inicio',tempo:'Tempo',loop:'Bucle',all:'Completa',cA:'Compases',cB:'a',cC:'',lset:'Repetir este tramo',acc:'Guitarra',mel:'Melodía',metro:'Metrónomo',countin:'Cuenta previa',capo:'Cejilla',none:'Sin cejilla',fret:'Traste {n}',key:'Suena en {k}',next:'Sigue {c}',bar:'Compás {n}',pickup:'Anacrusa',pass:'Vuelta {n}',looping:'Bucle {a}–{b}',hint:'Haz clic en cualquier compás de la partitura para empezar ahí. Espacio reproduce o pausa; las flechas izquierda y derecha cambian de compás.',lyEdit:"Traducción de la letra",lyLoad:"Cargar",lyBad:"No se pudo leer ese texto y no se cargó nada.",lyPaste:"Pega aquí tu traducción, un verso por línea, en el orden en que se canta",lyFill:"Rellenar por versos",lyDone:"{n} versos colocados ({t} huecos de frase en esta canción)",lyHint:"Escribe tu traducción en las casillas punteadas de las líneas de letra, o pégala entera a la izquierda y rellena por versos. Un solo - oculta el original; una casilla vacía lo muestra. Los cambios se guardan en este navegador sobre la marcha; usa Guardar o Descargar para conservarlos.",lySave:"Guardar en el simulador",lyDown:"Descargar",lyFile:"Cargar desde archivo",lyClr:"Borrar este idioma",lyClrAll:"Borrar todo",lySure:"Pulsa otra vez para confirmar",lySaved:"Guardado en el simulador; también aparecerá en otros dispositivos con la misma cuenta",lyFail:"No se guardó; tu texto sigue en este navegador",lyDowned:"Entregado al navegador para guardar",lyCleared:"Borrado; vuelve a verse la letra original",lyLoaded:"Cargado",sec:{'结尾':'Final','前奏':'Intro','主歌':'Estrofa','副歌':'Estribillo','间奏':'Interludio','结尾副歌':'Estribillo final','尾奏':'Final','桥段':'Puente'}},
+ 'fr':{name:'Français',app:'Guitare à jouer',play:'Lecture',pause:'Pause',rewind:'Au début',tempo:'Tempo',loop:'Boucle',all:'Morceau entier',cA:'Mesures',cB:'à',cC:'',lset:'Boucler ce passage',acc:'Guitare',mel:'Mélodie',metro:'Métronome',countin:'Décompte',capo:'Capodastre',none:'Sans',fret:'Case {n}',key:'Sonne en {k}',next:'Ensuite {c}',bar:'Mesure {n}',pickup:'Anacrouse',pass:'Passage {n}',looping:'Boucle {a}–{b}',hint:'Cliquez sur une mesure de la partition pour partir de là. Espace lance ou met en pause ; les flèches gauche et droite changent de mesure.',lyEdit:"Traduction des paroles",lyLoad:"Charger",lyBad:"Ce texte est illisible, rien n’a été chargé.",lyPaste:"Collez ici votre traduction, un vers par ligne, dans l’ordre du chant",lyFill:"Remplir par vers",lyDone:"{n} vers placés ({t} emplacements de phrase dans ce morceau)",lyHint:"Saisissez votre traduction dans les cases en pointillés des lignes de paroles, ou collez-la en entier à gauche puis remplissez par vers. Un simple - masque l’original ; une case vide le montre. Les modifications sont gardées dans ce navigateur au fur et à mesure ; utilisez Enregistrer ou Télécharger pour les conserver.",lySave:"Enregistrer dans le simulateur",lyDown:"Télécharger",lyFile:"Charger un fichier",lyClr:"Effacer cette langue",lyClrAll:"Tout effacer",lySure:"Cliquez encore pour confirmer",lySaved:"Enregistré dans le simulateur ; visible aussi sur d’autres appareils avec le même compte",lyFail:"Non enregistré ; votre texte reste dans ce navigateur",lyDowned:"Transmis au navigateur pour enregistrement",lyCleared:"Effacé ; les paroles d’origine sont de nouveau affichées",lyLoaded:"Chargé",sec:{'结尾':'Fin','前奏':'Intro','主歌':'Couplet','副歌':'Refrain','间奏':'Interlude','结尾副歌':'Refrain final','尾奏':'Outro','桥段':'Pont'}},
+ 'de':{name:'Deutsch',app:'Gitarre zum Mitspielen',play:'Start',pause:'Pause',rewind:'Zum Anfang',tempo:'Tempo',loop:'Loop',all:'Ganzes Stück',cA:'Takte',cB:'bis',cC:'',lset:'Diese Takte loopen',acc:'Gitarre',mel:'Melodie',metro:'Metronom',countin:'Vorzähler',capo:'Kapodaster',none:'Ohne',fret:'Bund {n}',key:'Klingt in {k}',next:'Dann {c}',bar:'Takt {n}',pickup:'Auftakt',pass:'Durchgang {n}',looping:'Loop {a}–{b}',hint:'Klicke auf einen Takt im Notenblatt, um dort zu starten. Leertaste startet oder pausiert; Pfeil links und rechts wechseln den Takt.',lyEdit:"Liedtext-Übersetzung",lyLoad:"Laden",lyBad:"Der Text ließ sich nicht lesen, es wurde nichts geladen.",lyPaste:"Füge hier deine Übersetzung ein, eine gesungene Zeile pro Zeile, in Singreihenfolge",lyFill:"Zeilenweise füllen",lyDone:"{n} Zeilen eingetragen ({t} Phrasenplätze in diesem Stück)",lyHint:"Trage deine Übersetzung in die gestrichelten Felder der Textzeilen ein oder füge sie links komplett ein und fülle zeilenweise. Ein einzelnes - verdeckt das Original; ein leeres Feld zeigt es. Änderungen werden laufend in diesem Browser gehalten; mit Speichern oder Herunterladen bleiben sie dauerhaft erhalten.",lySave:"Im Simulator speichern",lyDown:"Herunterladen",lyFile:"Aus Datei laden",lyClr:"Diese Sprache löschen",lyClrAll:"Alles löschen",lySure:"Zum Bestätigen erneut klicken",lySaved:"Im Simulator gespeichert; mit demselben Konto auch auf anderen Geräten sichtbar",lyFail:"Nicht gespeichert; dein Text bleibt in diesem Browser",lyDowned:"Zum Speichern an den Browser übergeben",lyCleared:"Gelöscht; der Originaltext wird wieder angezeigt",lyLoaded:"Geladen",sec:{'结尾':'Schluss','前奏':'Intro','主歌':'Strophe','副歌':'Refrain','间奏':'Zwischenspiel','结尾副歌':'Schlussrefrain','尾奏':'Outro','桥段':'Bridge'}},
+ 'pt':{name:'Português',app:'Violão para tocar junto',play:'Tocar',pause:'Pausar',rewind:'Ao início',tempo:'Andamento',loop:'Loop',all:'Música inteira',cA:'Compassos',cB:'a',cC:'',lset:'Repetir este trecho',acc:'Violão',mel:'Melodia',metro:'Metrônomo',countin:'Contagem',capo:'Capotraste',none:'Sem',fret:'Casa {n}',key:'Soa em {k}',next:'Depois {c}',bar:'Compasso {n}',pickup:'Anacruse',pass:'Vez {n}',looping:'Loop {a}–{b}',hint:'Clique em qualquer compasso da partitura para começar dali. Espaço toca ou pausa; as setas esquerda e direita mudam de compasso.',lyEdit:"Tradução da letra",lyLoad:"Carregar",lyBad:"Não foi possível ler esse texto; nada foi carregado.",lyPaste:"Cole aqui sua tradução, um verso por linha, na ordem em que se canta",lyFill:"Preencher por versos",lyDone:"{n} versos colocados ({t} espaços de frase nesta música)",lyHint:"Digite sua tradução nas caixas tracejadas das linhas de letra, ou cole tudo à esquerda e preencha por versos. Um único - esconde o original; uma caixa vazia o mostra. As alterações ficam neste navegador enquanto você edita; use Salvar ou Baixar para guardá-las de vez.",lySave:"Salvar no simulador",lyDown:"Baixar",lyFile:"Carregar de arquivo",lyClr:"Limpar este idioma",lyClrAll:"Limpar tudo",lySure:"Clique de novo para confirmar",lySaved:"Salvo no simulador; também aparece em outros aparelhos com a mesma conta",lyFail:"Não foi salvo; seu texto continua neste navegador",lyDowned:"Entregue ao navegador para salvar",lyCleared:"Limpo; a letra original voltou a aparecer",lyLoaded:"Carregado",sec:{'结尾':'Final','前奏':'Intro','主歌':'Verso','副歌':'Refrão','间奏':'Interlúdio','结尾副歌':'Refrão final','尾奏':'Final','桥段':'Ponte'}}
+};
+let LANG='zh-CN';
+const t=(k,v)=>{ let s=(I18N[LANG]||I18N['zh-CN'])[k]; if(s===undefined) s=I18N['zh-CN'][k]; return v?s.replace(/\{(\w+)\}/g,(_,x)=>v[x]):s; };
+const secName=n=>(I18N[LANG].sec||{})[n]||n; // 段落名只翻译常见的几种，其余照 song.json 原样显示
+
+/* ---------- 曲谱数据 ---------- */
+const BPB=S.beats||4, OFF=S.numberOffset||0, PICK=S.pickupRest||0, TONIC=S.tonicMidi||60;
+const OPEN=S.tuning||{1:64,2:59,3:55,4:50,5:45,6:40}, SHAPE=S.shapes, SONG=S.measures;
+const STEP=[0,0,2,4,5,7,9,11];
+const chordAt=(m,b)=>{let c=SONG[m].ch[0][0];for(const [n,s] of SONG[m].ch) if(b>=s-1e-6) c=n;return c;};
+const disp=m=>(PICK>0&&m===0)?t('pickup'):t('bar',{n:m+OFF});
+// 把每小节展开成事件：g=吉他伴奏，v=旋律
+SONG.forEach((s,m)=>{
+  const ev=[];
+  (s.acc||[]).forEach((sp,i)=>{ if(sp) ev.push([i*.5,sp]); });
+  (s.x||[]).forEach(e=>ev.push(e));
+  s.g=[];
+  for(const [b,sp] of ev){
+    const ch=chordAt(m,Math.floor(b*2)/2);
+    for(const part of sp.split(',')){
+      const [st,fr]=part.split('=');
+      const str=+st, fret=fr!==undefined?+fr:((SHAPE[ch]||{})[str]||0);
+      s.g.push({b,str,midi:OPEN[str]+fret,lead:fr!==undefined});
+    }
+  }
+  s.g.sort((x,y)=>x.b-y.b);
+  s.v=[]; let t=0;
+  for(const tok of (s.mel||'').split(' ').filter(Boolean)){
+    const [p,d]=tok.split(':'), dur=+d, mm=/^([#b]?)([0-7])([,']*)$/.exec(p);
+    if(mm&&mm[2]!=='0'){
+      let midi=TONIC+STEP[+mm[2]]+(mm[1]==='#'?1:mm[1]==='b'?-1:0);
+      for(const c of mm[3]) midi+=c===','?-12:12;
+      s.v.push({b:t,dur,midi});
+    }
+    t+=dur;
+  }
+});
+const range=(a,b)=>Array.from({length:b-a+1},(_,i)=>a+i);
+const FULL=(S.sequence&&S.sequence.length)?S.sequence.flatMap(([a,b])=>range(a,b)):range(0,SONG.length-1);
+const REPEATED=new Set(FULL.filter((m,i)=>FULL.indexOf(m)!==i));
+const SECTIONS=[[null,null],...(S.sections||[])]; // 第一项是"全曲"
+
+/* ---------- 谱面 ---------- */
+const $=id=>document.getElementById(id);
+for(let i=0;i<BPB;i++) $('beats').appendChild(document.createElement('i'));
+const sheet=$('sheet');
+// 两栏分配：让两栏高度尽量接近
+let SPLIT=SYS.length;
+if(SYS.length>1){ let best=Infinity; const tot=SYS.reduce((a,s)=>a+s.h,0); let acc=0;
+  for(let i=1;i<SYS.length;i++){ acc+=SYS[i-1].h; const v=Math.max(acc,tot-acc); if(v<best){best=v;SPLIT=i;} } }
+const cols=[document.createElement('div'),document.createElement('div')];
+cols.forEach(c=>{c.className='col';sheet.appendChild(c);});
+const sysEl=SYS.map((s,i)=>{
+  const d=document.createElement('div'); d.className='sys';
+  const im=new Image(); im.src=s.src; im.alt=S.title+' '+(i+1); im.draggable=false; d.appendChild(im);
+  cols[i<SPLIT?0:1].appendChild(d); return d;
+});
+const mEl=MEAS.map((g,m)=>{
+  const s=SYS[g.s], b=document.createElement('button');
+  b.className='m'; b.type='button'; b.setAttribute('aria-label',disp(m));
+  b.style.cssText=`left:${g.l/CW*100}%;width:${(g.r-g.l)/CW*100}%;top:${s.top/s.h*100}%;bottom:0`;
+  b.addEventListener('click',()=>seekMeasure(m));
+  sysEl[g.s].appendChild(b); return b;
+});
+// 谱面上的段落文字：换语言时用同位置的译文盖住原字
+const labEl=(S.labels||[]).map(L=>{
+  const s=SYS[L.s], d=document.createElement('div'); d.className='lab'; d.dataset.h=L.h;
+  d.style.cssText=`left:${L.x/CW*100}%;top:${L.y/s.h*100}%;height:${L.h/s.h*100}%;min-width:${L.w/CW*100}%;background:${L.bg||'#fff'}`;
+  sysEl[L.s].appendChild(d); return d;
+});
+// 歌词译文格：每个歌词行 × 每小节一格，内容由使用者自己填，只存在本机浏览器
+const LYKEY='playalong-ly:'+S.title; let LY={}, lyEdit=false;
+try{ LY=JSON.parse(localStorage.getItem(LYKEY)||'{}')||{}; }catch(e){}
+const lyEl=[];
+(S.lyricRows||[]).forEach((R,ri)=>{
+  const row=S.lyricRows.slice(0,ri).filter(x=>x.s===R.s).length, s=SYS[R.s];
+  MEAS.forEach((g,m)=>{
+    if(g.s!==R.s) return;
+    const d=document.createElement('div'); d.className='lyc'; d.dataset.k=m+'.'+row; d.dataset.h=R.h;
+    d.style.cssText=`left:${g.l/CW*100}%;top:${R.y/s.h*100}%;height:${R.h/s.h*100}%;min-width:${(g.r-g.l)/CW*100}%`;
+    d.addEventListener('input',()=>{
+      const v=d.textContent.replace(/\s+/g,' ').trim(); LY[LANG]=LY[LANG]||{};
+      if(v) LY[LANG][d.dataset.k]=v; else delete LY[LANG][d.dataset.k];
+      d.classList.toggle('on',!!v); saveLy();
+    });
+    d.addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); d.blur(); } });
+    sysEl[R.s].appendChild(d); lyEl.push(d);
+  });
+});
+// 译文比乐句的位置宽时，把字缩小一些（最多缩到六成），尽量不被下一句盖住
+function fitLy(){
+  if(lyEdit) return;
+  const tx=lyEl.filter(d=>d.classList.contains('txt'));
+  tx.forEach(d=>{ if(d.dataset.fs) d.style.fontSize=d.dataset.fs+'px'; });
+  tx.forEach(d=>{
+    const r=d.getBoundingClientRect(), box=d.parentNode.getBoundingClientRect();
+    let end=box.right;
+    tx.forEach(o=>{ if(o!==d&&o.parentNode===d.parentNode){ const q=o.getBoundingClientRect(); if(Math.abs(q.top-r.top)<2&&q.left>r.left+1&&q.left<end) end=q.left; } });
+    const avail=end-r.left-2, need=d.scrollWidth;
+    if(need>avail&&avail>0&&d.dataset.fs) d.style.fontSize=(+d.dataset.fs*Math.max(.6,avail/need))+'px';
+  });
+}
+let lyDirty=false; try{ lyDirty=localStorage.getItem(LYKEY+':dirty')==='1'; }catch(e){}
+function setDirty(v){ lyDirty=v; try{ localStorage.setItem(LYKEY+':dirty',v?'1':'0'); }catch(e){} }
+function saveLy(){ try{ localStorage.setItem(LYKEY,JSON.stringify(LY)); }catch(e){} setDirty(true); $('lyData').value=JSON.stringify(LY); }
+const lyMsg=s=>{ $('lyMsg').textContent=s; };
+function applyLy(o){ if(!o||typeof o!=='object'||Array.isArray(o)) throw 0; LY=o; saveLy(); renderLy(); lyMsg(t('lyLoaded')); }
+// 保存到模拟器（发布为 Claude Artifact 时可用，存在使用者自己的私有空间里）与下载到本地
+let capDb=null, capDl=null, uid=null;
+const lyRef=()=>capDb.doc('data/users/'+uid+'/lyrics');
+async function saveRemote(quiet){
+  try{ await lyRef().set({json:JSON.stringify(LY),at:Date.now()}); setDirty(false); if(!quiet) lyMsg(t('lySaved')); }
+  catch(e){ if(!quiet) lyMsg(t('lyFail')); }
+}
+async function pullRemote(){
+  try{ const s=await lyRef().get(); if(s.exists&&!lyDirty){ const o=JSON.parse(s.data().json||'{}'); if(o&&typeof o==='object'){ LY=o; try{ localStorage.setItem(LYKEY,JSON.stringify(LY)); }catch(e){} renderLy(); } } }catch(e){}
+}
+function updateCaps(){ $('lySave').hidden=!(capDb&&uid); $('lyDown').hidden=!(capDl||!window.claude); }
+if(window.claude&&window.claude.use){
+  window.claude.use('downloads').then(x=>{ capDl=x; updateCaps(); });
+  Promise.all([window.claude.use('db'),window.claude.use('user')]).then(async([d,u])=>{ capDb=d; uid=u?await u.id():null; updateCaps(); if(capDb&&uid) pullRemote(); });
+}
+async function downloadLy(){
+  const name=S.title+'-lyrics.json', data=JSON.stringify(LY,null,1);
+  try{
+    if(capDl) await capDl.save({filename:name,data});
+    else { const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([data],{type:'application/json'})); a.download=name; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),2000); }
+    lyMsg(t('lyDowned'));
+  }catch(e){ if(!e||e.code!=='declined') lyMsg(t('lyFail')); }
+}
+function clearLy(all){ if(all) LY={}; else delete LY[LANG]; saveLy(); renderLy(); lyMsg(t('lyCleared')); if(capDb&&uid) saveRemote(true); }
+// 清除类按钮要点两次，防止误触
+function sure(btn,fn){
+  const reset=()=>{ delete btn.dataset.arm; btn.textContent=t(btn.dataset.i18n); };
+  if(btn.dataset.arm){ reset(); fn(); } else { btn.dataset.arm='1'; btn.textContent=t('lySure'); setTimeout(()=>{ if(btn.dataset.arm) reset(); },3000); }
+}
+function renderLy(){
+  const cur=LY[LANG]||{};
+  lyEl.forEach(d=>{
+    const v=cur[d.dataset.k]||'';
+    d.textContent=(v==='-'&&!lyEdit)?'':v; d.classList.toggle('on',!!v); d.classList.toggle('txt',!!v&&v!=='-');
+    if(lyEdit){ d.contentEditable='plaintext-only'; if(d.contentEditable!=='plaintext-only') d.contentEditable='true'; d.spellcheck=false; }
+    else d.contentEditable='false';
+  });
+  sheet.classList.toggle('lyedit',lyEdit); $('lyPanel').hidden=!lyEdit;
+  $('lyBtn').setAttribute('aria-pressed',String(lyEdit)); $('lyData').value=JSON.stringify(LY);
+  lyEl.forEach(d=>{ if(d.dataset.fs) d.style.fontSize=d.dataset.fs+'px'; }); fitLy();
+}
+// 整段粘贴：第 i 行译文放进第 i 个乐句。乐句跨行时，文字放在占小节更多的那一行谱上
+const PH=S.lyricPhrases||[];
+function fillLines(){
+  const lines=$('lyLines').value.split(/\r?\n/).map(s=>s.trim()).filter(Boolean), cur=LY[LANG]=LY[LANG]||{};
+  let n=0;
+  lines.slice(0,PH.length).forEach((ln,i)=>{
+    const P=PH[i], groups=[];
+    P.m.forEach(m=>{ const s=MEAS[m].s, g=groups[groups.length-1]; if(g&&g.s===s) g.ms.push(m); else groups.push({s,ms:[m]}); });
+    let best=groups[0]; groups.forEach(g=>{ if(g.ms.length>=best.ms.length) best=g; });
+    P.m.forEach(m=>cur[m+'.'+P.r]='-'); (P.blank||[]).forEach(k=>cur[k]='-');
+    cur[best.ms[0]+'.'+P.r]=ln; n++;
+  });
+  saveLy(); renderLy(); $('lyMsg').textContent=t('lyDone',{n,t:PH.length});
+}
+const hl=document.createElement('div'); hl.className='hl';
+const ph=document.createElement('div'); ph.className='ph';
+let single=false;
+function fit(){
+  const cs=getComputedStyle(sheet), W=sheet.clientWidth-parseFloat(cs.paddingLeft)-parseFloat(cs.paddingRight),
+        H=sheet.clientHeight-parseFloat(cs.paddingTop)-parseFloat(cs.paddingBottom);
+  const rg=6, cg=Math.max(14,Math.min(36,W*.02));
+  const hA=SYS.slice(0,SPLIT).reduce((a,s)=>a+s.h,0), hB=SYS.slice(SPLIT).reduce((a,s)=>a+s.h,0);
+  const rows=Math.max(SPLIT,SYS.length-SPLIT);
+  let k=Math.min((W-cg)/2/CW,(H-(rows-1)*rg)/Math.max(hA,hB));
+  single = W<860 || k<.62 || SYS.length<2;
+  if(single) k=Math.min(W/CW,1.5);
+  k=Math.min(k,2.4);
+  sheet.classList.toggle('single',single);
+  sheet.style.setProperty('--rg',rg+'px'); sheet.style.setProperty('--cg',cg+'px');
+  SYS.forEach((s,i)=>{sysEl[i].style.width=CW*k+'px';sysEl[i].style.height=s.h*k+'px';});
+  labEl.forEach(d=>d.style.fontSize=(+d.dataset.h-1)*k+'px');
+  lyEl.forEach(d=>{ d.dataset.fs=(+d.dataset.h-2)*k; d.style.fontSize=d.dataset.fs+'px'; });
+  fitLy();
+}
+new ResizeObserver(fit).observe(sheet); fit();
+
+/* ---------- 声音 ---------- */
+let ctx=null, bus={}, live=[], strGain={}, capo=0; // capo=变调夹品位，所有音整体升高这么多个半音
+const ksCache={};
+// 拨弦音色：Karplus-Strong 合成，按音高预先算好缓存
+function ksBuffer(midi){
+  if(ksCache[midi]) return ksCache[midi];
+  const sr=ctx.sampleRate, f=440*Math.pow(2,(midi-69)/12), len=Math.floor(sr*(midi<52?3.6:2.8));
+  const buf=ctx.createBuffer(1,len,sr), o=buf.getChannelData(0);
+  const D=sr/f-.5, N=Math.floor(D), fr=D-N, n0=N+2;
+  let prev=0; const soft=midi<52?.55:.4;
+  for(let i=0;i<n0;i++){ const w=Math.random()*2-1; prev=prev*soft+w*(1-soft); o[i]=prev; }
+  const decay=midi<52?.9975:(midi<62?.9965:.9955);
+  for(let i=n0;i<len;i++){
+    const a=o[i-N]*(1-fr)+o[i-N-1]*fr, b=o[i-N-1]*(1-fr)+o[i-N-2]*fr;
+    o[i]=decay*.5*(a+b);
+  }
+  let pk=0; for(let i=0;i<len;i++){ const v=Math.abs(o[i]); if(v>pk) pk=v; }
+  const fade=Math.floor(sr*.25);
+  for(let i=0;i<len;i++){ o[i]/=pk||1; if(i>len-fade) o[i]*=(len-i)/fade; }
+  return ksCache[midi]=buf;
+}
+function initAudio(){
+  if(ctx) return;
+  ctx=new (window.AudioContext||window.webkitAudioContext)();
+  const master=ctx.createGain(); master.gain.value=.9;
+  const comp=ctx.createDynamicsCompressor(); comp.threshold.value=-14; comp.ratio.value=4;
+  master.connect(comp); comp.connect(ctx.destination);
+  const ir=ctx.createBuffer(2,ctx.sampleRate*1.4,ctx.sampleRate); // 一点房间感
+  for(let c=0;c<2;c++){const d=ir.getChannelData(c);for(let i=0;i<d.length;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/d.length,3.2);}
+  const rev=ctx.createConvolver(); rev.buffer=ir; const wet=ctx.createGain(); wet.gain.value=.14; rev.connect(wet); wet.connect(master);
+  for(const k of ['G','M','C']){ bus[k]=ctx.createGain(); bus[k].connect(master); if(k!=='C') bus[k].connect(rev); }
+  const lp=ctx.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=5200; bus.Gin=lp; lp.connect(bus.G);
+  bus.Cforce=ctx.createGain(); bus.Cforce.gain.value=.3; bus.Cforce.connect(ctx.destination); // 预备拍不受节拍器静音影响
+  applyMix();
+  warmBuffers();
+}
+function warmBuffers(){ if(ctx) new Set(SONG.flatMap(s=>s.g.map(e=>e.midi+capo))).forEach(ksBuffer); }
+function track(node,t){ live.push([node,t]); if(live.length>400) live=live.filter(x=>x[1]>ctx.currentTime-4); }
+function pluck(str,midi,t,lead){
+  midi+=capo;
+  const src=ctx.createBufferSource(); src.buffer=ksBuffer(midi);
+  const g=ctx.createGain(); g.gain.value=lead?.95:(str>=4?.9:.68);
+  src.connect(g); g.connect(bus.Gin);
+  const old=strGain[str]; // 同一根弦再拨时掐掉上一个音
+  if(old){ try{ old.gain.setValueAtTime(old.gain.value,t); old.gain.linearRampToValueAtTime(0,t+.03);}catch(e){} }
+  strGain[str]=g; src.start(t); track(src,t);
+}
+function sing(midi,t,dur){
+  const f=440*Math.pow(2,(midi+capo-69)/12), g=ctx.createGain(), lp=ctx.createBiquadFilter();
+  lp.type='lowpass'; lp.frequency.value=Math.min(4200,f*5);
+  const o1=ctx.createOscillator(); o1.type='triangle'; o1.frequency.value=f;
+  const o2=ctx.createOscillator(); o2.type='sine'; o2.frequency.value=f*2; const g2=ctx.createGain(); g2.gain.value=.18;
+  o1.connect(lp); o2.connect(g2); g2.connect(lp); lp.connect(g); g.connect(bus.M);
+  const end=t+Math.max(.08,dur-.03);
+  g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(.5,t+.03);
+  g.gain.setTargetAtTime(.34,t+.03,.25); g.gain.setTargetAtTime(0,end,.035);
+  if(dur>.55){ const l=ctx.createOscillator(), lg=ctx.createGain(); l.frequency.value=5.2; lg.gain.setValueAtTime(0,t); lg.gain.linearRampToValueAtTime(f*.006,t+.5);
+    l.connect(lg); lg.connect(o1.frequency); l.start(t); l.stop(end+.3); track(l,t); }
+  o1.start(t); o2.start(t); o1.stop(end+.3); o2.stop(end+.3); track(o1,t); track(o2,t);
+}
+function click(t,accent,force){
+  const o=ctx.createOscillator(), g=ctx.createGain(); o.frequency.value=accent?1560:1040; o.type='square';
+  g.gain.setValueAtTime(accent?.5:.32,t); g.gain.exponentialRampToValueAtTime(.001,t+.05);
+  o.connect(g); g.connect(force?bus.Cforce:bus.C); o.start(t); o.stop(t+.06); track(o,t);
+}
+
+/* ---------- 走带：以"拍"为单位的位置 + 提前量调度 ---------- */
+const st={playing:false,bpm:S.bpm||100,tl:FULL,loop:null,anchorT:0,anchorPos:0,schedPos:0,pausePos:0,raf:0,timer:0,preEnd:0,preStart:0};
+const tlLen=()=>st.tl.length*BPB;
+const posAt=t=>st.anchorPos+(t-st.anchorT)*st.bpm/60;
+const timeAt=p=>st.anchorT+(p-st.anchorPos)*60/st.bpm;
+function schedule(){
+  const horizon=posAt(ctx.currentTime+.14);
+  let guard=0;
+  while(st.schedPos<horizon && guard++<8){
+    const k=Math.floor(st.schedPos/BPB+1e-9);
+    if(!st.loop && k>=st.tl.length) break;
+    const m=st.tl[k%st.tl.length], from=st.schedPos-BPB*k, to=Math.min(horizon-BPB*k,BPB), s=SONG[m], sp=60/st.bpm;
+    const hit=b=>b>=from-1e-9 && b<to-1e-9;
+    for(const e of s.g) if(hit(e.b)) pluck(e.str,e.midi,timeAt(BPB*k+e.b),e.lead);
+    for(const e of s.v) if(hit(e.b)) sing(e.midi,timeAt(BPB*k+e.b),e.dur*sp);
+    for(let b=0;b<BPB;b++) if(hit(b) && timeAt(BPB*k+b)>=st.preEnd-1e-3) click(timeAt(BPB*k+b),b===0,false);
+    st.schedPos=to>=BPB?BPB*(k+1):BPB*k+to;
+  }
+}
+function play(){
+  initAudio(); ctx.resume();
+  let p=st.pausePos; if(!st.loop && p>=tlLen()-1e-6) p=0;
+  const sp=60/st.bpm, t0=ctx.currentTime+.1, pre=$('pre').checked, bar=Math.floor(p/BPB)*BPB;
+  const atPickup = PICK>0 && st.tl[Math.floor(p/BPB)]===0 && p-bar<PICK;
+  if(atPickup){ // 起拍小节前面的休止本身就当预备拍
+    if(pre){ p=bar; st.anchorT=t0; for(let i=0;i<PICK;i++) click(t0+i*sp,i===0,true); st.preStart=t0; st.preEnd=t0+PICK*sp; }
+    else { p=bar+PICK; st.anchorT=t0; st.preEnd=0; }
+  } else if(pre){
+    for(let i=0;i<BPB;i++) click(t0+i*sp,i===0,true);
+    st.anchorT=t0+BPB*sp; st.preStart=t0; st.preEnd=st.anchorT;
+  } else { st.anchorT=t0; st.preEnd=0; }
+  st.anchorPos=p; st.schedPos=p; st.playing=true;
+  $('play').textContent=t('pause');
+  schedule(); st.timer=setInterval(schedule,25); loopDraw();
+}
+function silence(){
+  const now=ctx?ctx.currentTime:0;
+  for(const [n] of live){ try{ n.stop(now+.02);}catch(e){} } live=[]; strGain={};
+}
+function halt(){ st.playing=false; clearInterval(st.timer); cancelAnimationFrame(st.raf); $('play').textContent=t('play'); }
+function pause(){
+  if(!st.playing) return;
+  let p=Math.max(st.anchorPos,posAt(ctx.currentTime));
+  if(st.loop) p%=tlLen(); else p=Math.min(p,tlLen()-BPB);
+  st.pausePos=Math.floor(p/BPB)*BPB; // 回到本小节开头，方便重来
+  halt(); silence(); draw(st.pausePos);
+}
+function seekPos(p){
+  if(st.playing){ silence(); st.anchorT=ctx.currentTime+.06; st.anchorPos=p; st.schedPos=p; st.preEnd=0; }
+  else { st.pausePos=p; draw(p); }
+}
+function curIndex(){ const p=st.playing?Math.max(0,posAt(ctx.currentTime)):st.pausePos; return Math.floor(p/BPB)%st.tl.length; }
+function seekMeasure(m){
+  if(st.loop && (m<st.loop[0]||m>st.loop[1])) setLoop(null,true);
+  let i;
+  if(st.loop) i=m-st.loop[0];
+  else { // 反复段有多次出现，取离当前位置最近的那一次
+    const cur=curIndex(); let best=1e9; i=0;
+    FULL.forEach((x,j)=>{ if(x===m && Math.abs(j-cur)<best){best=Math.abs(j-cur);i=j;} });
+    if(FULL.indexOf(m)<0) return;
+  }
+  seekPos(i*BPB);
+}
+function setLoop(r,keepPos){
+  const wasPlaying=st.playing, curM=st.tl[curIndex()];
+  if(wasPlaying){ halt(); silence(); }
+  st.loop=r; st.tl=r?range(r[0],r[1]):FULL;
+  mEl.forEach((b,m)=>b.classList.toggle('in',!!r&&m>=r[0]&&m<=r[1]));
+  const same=(s)=>!!r&&!!s&&s[0]===r[0]&&s[1]===r[1];
+  document.querySelectorAll('#chips .chip').forEach((c,i)=>c.setAttribute('aria-pressed',String(r?same(SECTIONS[i][1]):!SECTIONS[i][1])));
+  $('lset').setAttribute('aria-pressed',String(!!r&&!SECTIONS.some(x=>same(x[1]))));
+  if(r){ $('la').value=r[0]+OFF; $('lb').value=r[1]+OFF; }
+  let i=0; if(keepPos){ i=st.tl.indexOf(curM); if(i<0) i=0; }
+  st.pausePos=i*BPB; draw(st.pausePos);
+  if(wasPlaying){ const pre=$('pre').checked; $('pre').checked=false; play(); $('pre').checked=pre; }
+}
+
+/* ---------- 画面 ---------- */
+function draw(p){
+  const len=st.tl.length; let k=Math.floor(p/BPB+1e-9), beat=p-BPB*k;
+  if(p<0){k=Math.floor(st.anchorPos/BPB);beat=0;}
+  if(st.loop) k=((k%len)+len)%len; else k=Math.min(k,len-1);
+  const m=st.tl[k], g=MEAS[m], s=SYS[g.s], el=sysEl[g.s];
+  if(hl.parentNode!==el){ el.appendChild(hl); el.appendChild(ph);
+    if(single) el.scrollIntoView({block:'center',behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'}); }
+  const top=s.top/s.h*100;
+  hl.style.cssText=`left:${g.l/CW*100}%;width:${(g.r-g.l)/CW*100}%;top:${top}%;bottom:0`;
+  const x=Math.max(g.l+2,Math.min(g.r-1,g.x1+beat*2*g.d)); // 每拍 2 个八分位，间距 d
+  ph.style.cssText=`left:${x/CW*100}%;top:${top}%;bottom:0`;
+  const b=Math.max(0,Math.min(BPB-.001,beat)), ch=chordAt(m,b);
+  $('chord').textContent=ch;
+  let nx=''; const later=SONG[m].ch.find(c=>c[1]>b);
+  if(later) nx=later[0];
+  else for(let j=1;j<=4&&!nx;j++){ const kk=st.loop?(k+j)%len:k+j; if(kk>=len) break; const c=SONG[st.tl[kk]].ch[0][0]; if(c!==ch) nx=c; }
+  $('next').textContent=nx?t('next',{c:nx}):'';
+  let where=disp(m);
+  if(!st.loop && REPEATED.has(m)) where+='　'+t('pass',{n:FULL.slice(0,k).filter(x=>x===m).length+1});
+  if(st.loop) where+='　'+t('looping',{a:st.loop[0]+OFF,b:st.loop[1]+OFF});
+  if(st.playing && st.preEnd && ctx.currentTime<st.preEnd) where=t('countin')+' '+Math.max(1,Math.floor((ctx.currentTime-st.preStart)*st.bpm/60)+1);
+  $('where').textContent=where;
+  // 段落大意：当前小节所在段落若有该语言的概述，就显示在小节号后面
+  const sec=(S.sections||[]).find(x=>m>=x[1][0]&&m<=x[1][1]), gs=sec&&(((S.i18n||{})[LANG]||{}).gist||{})[sec[0]];
+  const gt=gs?secName(sec[0])+': '+gs:''; if($('gist').textContent!==gt){ $('gist').textContent=gt; $('gist').title=gt; }
+  const bi=Math.floor(b); [...$('beats').children].forEach((d,i)=>d.classList.toggle('on',st.playing&&p>=0&&i===bi));
+}
+function loopDraw(){
+  if(!st.playing) return;
+  const p=posAt(ctx.currentTime-(ctx.outputLatency||0));
+  if(!st.loop && p>=tlLen()+.5){ halt(); st.pausePos=0; draw(0); return; }
+  draw(p); st.raf=requestAnimationFrame(loopDraw);
+}
+
+/* ---------- 控件 ---------- */
+SECTIONS.forEach(([name,r])=>{
+  const b=document.createElement('button'); b.className='chip'; b.type='button';
+  b.setAttribute('aria-pressed',String(!r)); b.style.marginRight='6px';
+  b.addEventListener('click',()=>setLoop(r,false)); $('chips').appendChild(b);
+});
+const lastM=SONG.length-1;
+for(const id of ['la','lb']){ $(id).min=OFF; $(id).max=lastM+OFF; }
+{ const d=(S.sections&&S.sections[0])?S.sections[0][1]:[0,Math.min(lastM,7)]; $('la').value=d[0]+OFF; $('lb').value=d[1]+OFF; }
+$('lset').addEventListener('click',()=>{
+  const cl=v=>Math.max(0,Math.min(lastM,(parseInt(v)||0)-OFF));
+  let a=cl($('la').value), b=cl($('lb').value); if(a>b) [a,b]=[b,a]; setLoop([a,b],false);
+});
+$('play').addEventListener('click',()=>st.playing?pause():play());
+$('rewind').addEventListener('click',()=>seekPos(0));
+const BMIN=40, BMAX=Math.max(120,(S.bpm||100)+20); $('bpm').min=BMIN; $('bpm').max=BMAX;
+function setBpm(v,quiet){
+  v=Math.max(BMIN,Math.min(BMAX,Math.round(v)));
+  if(st.playing){ const now=ctx.currentTime, p=posAt(now); st.anchorPos=p; st.anchorT=now; }
+  st.bpm=v; $('bpm').value=v; $('bpmOut').textContent=v; if(!quiet) save();
+}
+$('bpm').addEventListener('input',e=>setBpm(+e.target.value));
+$('slower').addEventListener('click',()=>setBpm(st.bpm-5));
+$('faster').addEventListener('click',()=>setBpm(st.bpm+5));
+function applyMix(){
+  if(!ctx) return;
+  for(const k of ['G','M','C']){
+    const on=$('m'+k).getAttribute('aria-pressed')==='true', v=$('v'+k).value/100;
+    bus[k].gain.setTargetAtTime(on?v*v*(k==='G'?1.1:k==='M'?.9:.8):0,ctx.currentTime,.02);
+  }
+}
+for(const k of ['G','M','C']){
+  $('m'+k).addEventListener('click',e=>{ const b=e.currentTarget; b.setAttribute('aria-pressed',String(b.getAttribute('aria-pressed')!=='true')); applyMix(); save(); });
+  $('v'+k).addEventListener('input',()=>{ applyMix(); save(); });
+}
+$('pre').addEventListener('change',save);
+const KEYS=['C','D♭','D','E♭','E','F','F♯','G','A♭','A','B♭','B'];
+function setCapo(v,quiet){
+  capo=Math.max(0,Math.min(5,parseInt(v)||0)); $('capo').value=capo;
+  $('keyNow').textContent=t('key',{k:KEYS[((TONIC+capo)%12+12)%12]});
+  warmBuffers(); if(!quiet) save();
+}
+$('capo').addEventListener('change',e=>setCapo(e.target.value));
+for(let n=0;n<=5;n++) $('capo').appendChild(document.createElement('option')).value=n;
+for(const k in I18N){ const o=$('lang').appendChild(document.createElement('option')); o.value=k; o.textContent=I18N[k].name; }
+function setLang(l,quiet){
+  LANG=I18N[l]?l:'zh-CN'; $('lang').value=LANG; document.documentElement.lang=LANG;
+  const L=(S.i18n||{})[LANG]||{}, title=L.title||S.title;
+  document.title=title+' '+t('app'); $('title').textContent=title; $('credits').textContent='';
+  (L.credits||S.credits||[]).forEach(c=>{const e=document.createElement('span');e.textContent=c;$('credits').appendChild(e);});
+  labEl.forEach((d,i)=>{ const src=S.labels[i].text, tr=secName(src); d.textContent=tr; d.style.display=tr===src?'none':'flex'; });
+  document.querySelectorAll('[data-i18n]').forEach(e=>e.textContent=t(e.dataset.i18n));
+  $('play').textContent=t(st.playing?'pause':'play');
+  document.querySelectorAll('#chips .chip').forEach((c,i)=>c.textContent=SECTIONS[i][0]===null?t('all'):secName(SECTIONS[i][0]));
+  [...$('capo').options].forEach((o,n)=>o.textContent=n?t('fret',{n}):t('none'));
+  $('keyNow').textContent=t('key',{k:KEYS[((TONIC+capo)%12+12)%12]});
+  mEl.forEach((b,m)=>b.setAttribute('aria-label',disp(m)));
+  for(const [id,k] of [['vG','acc'],['vM','mel'],['vC','metro'],['bpm','tempo'],['la','cA'],['lb','cB'],['capo','capo']]) $(id).setAttribute('aria-label',t(k));
+  $('slower').setAttribute('aria-label',t('tempo')+' −5'); $('faster').setAttribute('aria-label',t('tempo')+' +5');
+  $('sheet').setAttribute('aria-label',S.title);
+  $('lyLines').placeholder=t('lyPaste'); $('lyMsg').textContent='';
+  renderLy();
+  if(!st.playing) draw(st.pausePos); if(!quiet) save();
+}
+$('lyBtn').hidden=!lyEl.length;
+$('lyLines').hidden=$('lyFill').hidden=!PH.length;
+$('lyFill').addEventListener('click',fillLines);
+$('lyBtn').addEventListener('click',()=>{ lyEdit=!lyEdit; renderLy(); });
+$('lyLoad').addEventListener('click',()=>{ try{ applyLy(JSON.parse($('lyData').value)); }catch(e){ lyMsg(t('lyBad')); } });
+$('lySave').addEventListener('click',()=>saveRemote(false));
+$('lyDown').addEventListener('click',downloadLy);
+$('lyFileBtn').addEventListener('click',()=>$('lyFile').click());
+$('lyFile').addEventListener('change',async e=>{ const f=e.target.files[0]; if(!f) return; try{ applyLy(JSON.parse(await f.text())); }catch(err){ lyMsg(t('lyBad')); } e.target.value=''; });
+$('lyClr').addEventListener('click',e=>sure(e.currentTarget,()=>clearLy(false)));
+$('lyClrAll').addEventListener('click',e=>sure(e.currentTarget,()=>clearLy(true)));
+updateCaps();
+$('lang').addEventListener('change',e=>setLang(e.target.value));
+function guessLang(){ // 没选过语言时按浏览器语言猜
+  for(const n of (navigator.languages||[navigator.language||''])){
+    const l=n.toLowerCase();
+    if(/^zh\b/.test(l)) return /tw|hk|mo|hant/.test(l)?'zh-TW':'zh-CN';
+    const k=l.slice(0,2); if(I18N[k]) return k;
+  }
+  return 'zh-CN';
+}
+document.addEventListener('keydown',e=>{
+  if(e.target.isContentEditable||e.target.tagName==='TEXTAREA') return;
+  if(e.target.tagName==='INPUT'&&e.target.type==='number') return;
+  if(e.code==='Space'){ if(e.target.type==='checkbox') return; e.preventDefault(); st.playing?pause():play(); }
+  else if(e.key==='ArrowRight'||e.key==='ArrowLeft'){
+    if(e.target.type==='range') return;
+    e.preventDefault(); const i=Math.max(0,Math.min(st.tl.length-1,curIndex()+(e.key==='ArrowRight'?1:-1))); seekPos(i*BPB);
+  }
+});
+document.addEventListener('keyup',e=>{ if(e.code==='Space'&&e.target.tagName==='BUTTON') e.preventDefault(); });
+// 只记个人偏好（速度、音量、预备拍），存不上也不影响使用
+const KEY='playalong:'+S.title;
+function save(){ try{ localStorage.setItem(KEY,JSON.stringify({bpm:st.bpm,pre:$('pre').checked,capo,lang:LANG,
+  G:[$('mG').getAttribute('aria-pressed'),$('vG').value],M:[$('mM').getAttribute('aria-pressed'),$('vM').value],C:[$('mC').getAttribute('aria-pressed'),$('vC').value]})); }catch(e){} }
+setBpm(st.bpm,true); setCapo(S.capo||0,true);
+let lang0=S.lang||guessLang();
+try{ const s=JSON.parse(localStorage.getItem(KEY)||'null');
+  if(s){ if(s.bpm) setBpm(s.bpm,true); if(s.capo!=null) setCapo(s.capo,true); if(s.lang) lang0=s.lang; $('pre').checked=s.pre!==false;
+    for(const k of ['G','M','C']) if(s[k]){ $('m'+k).setAttribute('aria-pressed',s[k][0]); $('v'+k).value=s[k][1]; } } }catch(e){}
+setLang(lang0,true);
+draw(0);
+</script>
+</body>
+</html>
