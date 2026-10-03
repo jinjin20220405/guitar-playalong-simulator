@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+.DS_Store
+work/
+# Do not commit sheet images or generated pages
+*.png
+!docs/*.png
+*.html
+!guitar-playalong-simulator/assets/template.html
