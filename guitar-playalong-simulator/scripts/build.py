@@ -65,7 +65,9 @@ for i, P in enumerate(song.get('lyricPhrases', [])):
         errs.append(f'lyricPhrases[{i}] 需要 r(该行谱里第几行歌词，从0起) 和 m(小节下标列表)')
     for k in P.get('blank', []):
         if not re.match(r'^\d+\.\d+$', str(k)): errs.append(f'lyricPhrases[{i}] 的 blank 应写成 "小节下标.歌词行号"，如 "8.0"')
-if 'lyrics' in song: errs.append('song.json 不应包含歌词或歌词译文（lyrics）；译文由用户在页面上自行填写')
+for i, R in enumerate(song.get('jianpuRows', [])):
+    if not (0 <= R.get('s', -1) < len(geo['systems'])) or not all(k in R for k in ('y', 'h')):
+        errs.append(f'jianpuRows[{i}] 需要 s(行号)、y、h，且 s 在行数范围内')
 for w in warns: print('提示:', w)
 if errs:
     for e in errs: print('错误:', e)
@@ -92,6 +94,10 @@ for L in song.get('labels', []):
 # 歌词行：只记位置，供用户在页面上自填译文
 for R in song.get('lyricRows', []):
     R['y'] -= geo['systems'][R['s']]['y0']
+# 简谱行：只记位置，页面打开时由浏览器自己读谱识别旋律
+for R in song.get('jianpuRows', []):
+    s = geo['systems'][R['s']]
+    R['h'] = min(R['h'], s['y1'] - R['y']); R['y'] -= s['y0']
 
 t = open(A.template, encoding='utf-8').read()
 for key, val in (('/*SYS*/', json.dumps(SYS)), ('/*MEAS*/', json.dumps(MEAS)), ('/*CW*/', str(X1 - X0)),

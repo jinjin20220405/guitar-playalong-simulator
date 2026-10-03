@@ -9,22 +9,31 @@ Give an AI agent one image of a guitar score (six-line tablature + numbered nota
 
 ## What the generated page does
 
-- Shows the **original sheet image**, two columns on one screen (single column on phones), with a cursor that follows the beat and the current bar highlighted
-- Plays the **guitar accompaniment** note by note from the tab (plucked-string synthesis, no samples) and the **melody** from the numbered notation, each with its own mute button and volume
-- **Tempo** slider, **metronome**, optional **count-in**
-- **Loop** any section (intro, verse, chorus…) or any range of bars; click any bar to jump there
-- **Capo** selector (none to fret 5) that transposes the sound and shows the sounding key
+- Shows the **original sheet image**, re-flowed into as many columns as needed so that **everything fits on one landscape screen** with no scrolling (single column on phones); a cursor follows the beat and the current bar is highlighted
+- Plays the **guitar accompaniment** from the tab (plucked-string synthesis, no samples)
+- **Reads the numbered notation (jianpu) by itself, in the browser**, and plays the melody; bars whose beats do not add up are outlined in red and can be corrected in place
+- **Tempo** slider, **metronome**, optional **count-in**, **capo** selector (none to fret 5)
+- **Loop** any section or any range of bars; click any bar to jump there
 - **Nine interface languages**: 简体中文, 繁體中文, English, 日本語, 한국어, Español, Français, Deutsch, Português
 - **Lyric translation slots**: users type or paste their own translation and it is laid over the lyric lines; it can be saved, downloaded, reloaded or cleared
 - Light and dark themes; no network needed once generated
 
+## Five principles the skill gives the agent
+
+1. Re-layout is allowed when it makes the sheet easier to use
+2. Fit everything on one screen of an ordinary landscape monitor whenever possible
+3. Stay faithful to the user's content; apart from layout, change nothing without the user's permission, and say so **before** starting if some part cannot be done
+4. Do not make legal determinations (copyright or otherwise) about the user's material on your own; if the agent has limits of its own, it states them as its own limits
+5. Keep asking whether every way of making the goal easy for people has been tried
+
 ## How it works
 
-The sheet is never redrawn. The skill only needs to know three things: where each bar sits on the image, what notes each bar contains, and how to line the two up in time.
+The sheet is never redrawn. The skill needs three things: where each bar sits on the image, what each bar should sound like, and how to line the two up in time.
 
 1. `scripts/detect.py` finds the staves, barlines and note positions on the image and writes zoomed crops for reading
-2. The agent transcribes chords, tab and melody into `song.json` (format and reading rules in `references/song-schema.md`)
+2. The agent fills `song.json` with chords, the picking pattern of the accompaniment and the positions of the jianpu and lyric rows (format in `references/song-schema.md`)
 3. `scripts/build.py` validates the data and merges image, geometry and data into one HTML file from `assets/template.html`
+4. When the page opens, a small recogniser inside it reads the jianpu digits, underlines and dots from the image and turns them into the melody
 
 ## Requirements
 
@@ -53,13 +62,13 @@ The agent asks one or two questions, runs the scripts, and hands back an HTML fi
 
 ## Scope and limits
 
-- Built for scores that combine **six-line tab with numbered notation (jianpu)**, as commonly published for Chinese pop and folk guitar. Pure staff notation is not supported
-- Tested on one layout style so far; other engraving styles may need the detection parameters adjusted (see the top of `detect.py`)
-- Grace notes are skipped; slides and hammer-ons sound as plain notes
+- Built for scores that combine **six-line tab with numbered notation (jianpu)**. Pure staff notation is not supported
+- The in-page melody reader has been tested on one sheet so far. On that sheet about 9 bars in 10 passed the beat check; octave dots squeezed between underlines and lyrics are the weakest point. Expect to correct some bars by hand
+- Ties are re-articulated and grace notes are skipped
 
-## Copyright note
+## About the material you use
 
-This repository contains **no songs**. The only example is a four-bar public-domain melody used as a format sample. Sheet music and lyrics usually belong to their authors: generate simulators from scores you are entitled to use, keep them for your own practice, and do not commit copyrighted sheets or generated pages to public repositories. By design the skill tells the agent **not to transcribe or translate lyrics**; translation slots are filled in by the user.
+This repository ships no songs; the only example is a four-bar public-domain melody used as a format sample. Which sheet you turn into a simulator is your decision. The skill tells the agent not to rule on legal questions about your material by itself, and to tell you up front about anything it will not do.
 
 ## Repository layout
 
