@@ -28,12 +28,20 @@ Give an AI agent one image of a guitar score (six-line tablature + numbered nota
 
 ## How it works
 
-The sheet is never redrawn. The skill needs three things: where each bar sits on the image, what each bar should sound like, and how to line the two up in time.
+The sheet is never redrawn. The whole job is a fixed sequence of five commands; each one prints what to run next, so even a modest agent can follow it.
 
-1. `scripts/detect.py` finds the staves, barlines and note positions on the image and writes zoomed crops for reading
-2. The agent fills `song.json` with chords, the picking pattern of the accompaniment and the positions of the jianpu and lyric rows (format in `references/song-schema.md`)
-3. `scripts/build.py` validates the data and merges image, geometry and data into one HTML file from `assets/template.html`
-4. When the page opens, a small recogniser inside it reads the jianpu digits, underlines and dots from the image and turns them into the melody
+| Step | Command | What the agent does |
+|---|---|---|
+| 1–2 Convert and tidy | `prepare.py sheet.pdf --out work/` | nothing: PDF rendering, column detection, stacking and scaling are automatic |
+| 3, 5 Locate | `detect.py --out work/` | read one section of the report ("needs a human look") |
+| 4 Read | fill `work/song.txt`, then `make_song.py --out work/` | copy the chord names from numbered zoom images, confirm the picking pattern |
+| 6 Build | `build.py --out work/ --html song.html` | nothing |
+| 7 Check | `check.py song.html` | look at one screenshot, report the numbers |
+
+- Bar lines, jianpu rows and lyric rows are located by the scripts; nobody measures coordinates
+- Zoom images carry a red index above every bar, so chords are copied one index at a time
+- `song.txt` is a short table, not JSON; mistakes are reported in plain words ("row 3 needs 8 chords, you wrote 7")
+- When the page opens, a small recogniser inside it reads the jianpu digits, underlines and dots and turns them into the melody
 
 ## Requirements
 
@@ -63,8 +71,10 @@ The agent asks one or two questions, runs the scripts, and hands back an HTML fi
 ## Scope and limits
 
 - Built for scores that combine **six-line tab with numbered notation (jianpu)**. Pure staff notation is not supported
-- The in-page melody reader has been tested on one sheet so far. On that sheet about 9 bars in 10 passed the beat check; octave dots squeezed between underlines and lyrics are the weakest point. Expect to correct some bars by hand
+- Tested on three inputs so far (a high-resolution two-column image, a low-resolution single-column image, a scanned PDF). Layout and bar counts came out right on all three; the in-page melody reader got about 9 bars in 10 on the sharp image and 7–8 in 10 on the others. Expect to correct some bars by hand, more on low-resolution scans
+- Very faint bar lines may be missed; the report flags the suspicious bar and says exactly what to add
 - Ties are re-articulated and grace notes are skipped
+- Step 4 still needs an agent that can read chord names from an image
 
 ## About the material you use
 
@@ -74,12 +84,14 @@ This repository ships no songs; the only example is a four-bar public-domain mel
 
 ```
 guitar-playalong-simulator/     the skill itself
-├── SKILL.md                    workflow the agent follows (written in Chinese)
-├── scripts/detect.py           layout detection
-├── scripts/build.py            validation + HTML generation
-├── scripts/smoke_test.py       optional headless-browser test
-├── assets/template.html        page template: UI, synthesis, scheduling, i18n
-├── references/song-schema.md   data format and score-reading rules
+├── SKILL.md                    the seven-step procedure (written in Chinese)
+├── scripts/prepare.py          steps 1–2: PDF/image → single-column, scaled
+├── scripts/detect.py           steps 3, 5: staves, bar lines, rows, numbered zooms
+├── scripts/make_song.py        step 4: song.txt → song.json
+├── scripts/build.py            step 6: one self-contained HTML file
+├── scripts/check.py            step 7: automatic checks (needs playwright)
+├── assets/template.html        page template: UI, layout, synthesis, melody reader, i18n
+├── references/song-schema.md   formats of song.txt / song.json / geometry.json
 └── examples/demo.song.json     format sample (public-domain melody)
 ```
 

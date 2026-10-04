@@ -428,13 +428,13 @@ function jpComponents(bin,gray,w,h){
 }
 const median=a=>{ const b=[...a].sort((x,y)=>x-y); return b.length?b[Math.floor(b.length/2)]:0; };
 // 识别一行谱的简谱，返回 {小节下标: [音符…]}，音符 = {d:数字, oct:八度, dur:拍数, tie:是否连音延续}
-async function jpReadRow(R,img,measIdx){
+async function jpReadRow(R,img,measIdx,thr){
   await img.decode();
   const k=img.naturalWidth/CW, w=img.naturalWidth, y0=Math.max(0,Math.round(R.y*k)), h=Math.min(img.naturalHeight-y0,Math.round(R.h*k));
   const cv=document.createElement('canvas'); cv.width=w; cv.height=h; const cx=cv.getContext('2d',{willReadFrequently:true});
   cx.drawImage(img,0,y0,w,h,0,0,w,h);
   const px=cx.getImageData(0,0,w,h).data, gray=new Uint8Array(w*h), bin=new Uint8Array(w*h);
-  for(let i=0;i<w*h;i++){ const v=(px[i*4]*3+px[i*4+1]*6+px[i*4+2])/10; gray[i]=v; bin[i]=v<185?1:0; }
+  for(let i=0;i<w*h;i++){ const v=(px[i*4]*3+px[i*4+1]*6+px[i*4+2])/10; gray[i]=v; bin[i]=v<thr?1:0; }
   // 逐行统计：墨量、最长横向连续段
   const runMax=new Uint16Array(h), rowInk=new Uint32Array(h);
   for(let y=0;y<h;y++){ let run=0,mx=0,s=0; for(let x=0;x<w;x++){ if(bin[y*w+x]){ s++; run++; if(run>mx) mx=run; } else run=0; } runMax[y]=mx; rowInk[y]=s; }
@@ -446,6 +446,10 @@ async function jpReadRow(R,img,measIdx){
   let digBot=bBot; const bH=bBot-bTop+1;
   // 数字和下划线粘在一起时，行块下部会出现很长的横线，从那里切开
   for(let y=bTop+Math.floor(bH*.6);y<=bBot;y++) if(runMax[y]>=h*.55){ digBot=y-1; break; }
+  // 低分辨率的谱上，下划线常紧贴数字底部、被算进了数字行。数字所在的行里"短横段"多，下划线所在的行几乎全是长横段：按这个把它们分开
+  const shortInk=y=>{ let s=0,run=0; for(let x=0;x<=w;x++){ if(x<w&&bin[y*w+x]) run++; else { if(run&&run<bH*.38) s+=run; run=0; } } return s; };
+  { const sh=[]; let mx=0; for(let y=bTop;y<=digBot;y++){ const v=shortInk(y); sh.push(v); if(v>mx) mx=v; }
+    let last=sh.length-1; while(last>bH*.5&&sh[last]<mx*.15) last--; digBot=bTop+last; }
   const zoneH=Math.min(h,digBot+1);
   const top=jpComponents(bin.subarray(0,zoneH*w),gray,w,zoneH);
   const tall=top.filter(c=>c.h>=zoneH*.25&&c.w<=c.h*1.05&&c.w>=c.h*.05);
@@ -464,7 +468,7 @@ async function jpReadRow(R,img,measIdx){
   const small=top.filter(smallOK);                         // 数字区里的小圆点：附点、高音点
   const dashes=top.filter(c=>c.h<=H*.32&&c.w>=H*.38&&c.w<=H*1.4&&c.cy>rowTop+H*.25&&c.cy<rowBot-H*.15);
   // 数字下面：下划线（一条=八分，两条=十六分）、低音点，再往下可能是歌词
-  const runs=y=>{ const r=[]; let x=0; while(x<w){ if(bin[y*w+x]){ const s=x; while(x<w&&bin[y*w+x]) x++; if(x-s>=H*.38) r.push({x0:s,x1:x-1,y0:y,y1:y}); } else x++; } return r; };
+  const runs=y=>{ const r=[]; let x=0; while(x<w){ if(bin[y*w+x]){ const s=x; while(x<w&&bin[y*w+x]) x++; if(x-s>=H*.38&&x-s<=H*12) r.push({x0:s,x1:x-1,y0:y,y1:y}); } else x++; } return r; };   // 太长的横线是页面上的分隔线，不是减时线
   const cover=y=>runs(y).reduce((s,q)=>s+q.x1-q.x0+1,0);
   let uTop=h; for(let y=zoneH;y<Math.min(h,zoneH+H*.5);y++) if(cover(y)>0){ uTop=y; break; }
   let unders=[], t1=0;
@@ -512,9 +516,13 @@ async function jpReadRow(R,img,measIdx){
   return out;
 }
 async function jpReadAll(){
-  const rows=(S.jianpuRows||[]).map(R=>({R,img:sysEl[R.s].querySelector('img'),idx:MEAS.map((g,i)=>g.s===R.s?i:-1).filter(i=>i>=0)}));
-  const res={};
-  for(const r of rows){ Object.assign(res,await jpReadRow(r.R,r.img,r.idx)); }
+  // 墨色阈值两档都读一遍（浅灰的细下划线只有放宽阈值才看得见，但放宽后黑白分明的谱又容易粘连），每行取"拍数对得上的小节"更多的那一档
+  const res={}, okCount=o=>Object.values(o).filter(n=>n.length&&Math.abs(n.reduce((a,x)=>a+x.dur,0)-BPB)<1e-6).length;
+  for(const R of (S.jianpuRows||[])){
+    const img=sysEl[R.s].querySelector('img'), idx=MEAS.map((g,i)=>g.s===R.s?i:-1).filter(i=>i>=0);
+    const a=await jpReadRow(R,img,idx,185), b=await jpReadRow(R,img,idx,225);
+    Object.assign(res,okCount(b)>okCount(a)?b:a);
+  }
   return res;
 }
 

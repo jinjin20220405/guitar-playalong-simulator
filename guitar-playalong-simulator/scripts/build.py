@@ -4,7 +4,7 @@
 build.py  把 谱面图片 + geometry.json + song.json 合成一个自包含的跟弹模拟器 HTML。
 
 用法:
-    python build.py --image 谱.png --geometry work/geometry.json --song work/song.json --out 跟弹模拟器.html
+    python build.py --out work/ --html 曲名跟弹模拟器.html
 
 会先做数据校验：有"错误"则不生成；"提示"不阻断，但要逐条确认是不是有意为之。
 依赖: Pillow
@@ -13,17 +13,39 @@ import argparse, base64, io, json, os, re, sys
 from PIL import Image
 
 ap = argparse.ArgumentParser()
-ap.add_argument('--image', required=True)
-ap.add_argument('--geometry', required=True)
-ap.add_argument('--song', required=True)
-ap.add_argument('--out', required=True)
+ap.add_argument('--out', default='work', help='工作目录（里面有 disp.png、geometry.json、song.json、prep.json）')
+ap.add_argument('--html', required=True, help='生成的网页文件名')
+ap.add_argument('--image'); ap.add_argument('--geometry'); ap.add_argument('--song')
 ap.add_argument('--template', default=os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'assets', 'template.html'))
-ap.add_argument('--colors', type=int, default=48, help='谱面图片量化颜色数(越小文件越小)')
+ap.add_argument('--colors', type=int, default=32, help='谱面图片量化颜色数(越小文件越小)')
 A = ap.parse_args()
-
+A.geometry = A.geometry or os.path.join(A.out, 'geometry.json'); A.song = A.song or os.path.join(A.out, 'song.json')
+for f in (A.geometry, A.song):
+    if not os.path.exists(f): sys.exit(f'错误: {f} 不存在。请按顺序先运行 prepare.py、detect.py、make_song.py。')
 geo = json.load(open(A.geometry, encoding='utf-8'))
 song = json.load(open(A.song, encoding='utf-8'))
+K = 1.0                                   # 坐标是 det.png 上的；显示用 disp.png，两者相差 K 倍
+pj = os.path.join(A.out, 'prep.json')
+if os.path.exists(pj): K = json.load(open(pj)).get('K', 1.0)
+if not A.image:
+    A.image = os.path.join(A.out, 'disp.png' if os.path.exists(os.path.join(A.out, 'disp.png')) else 'det.png')
+    if A.image.endswith('det.png'): K = 1.0
 im = Image.open(A.image).convert('RGB')
+beats0 = song.get('beats', 4); pk0 = song.get('pickupRest', 0)
+for i, g in enumerate(geo['measures']):   # 由"第一个音的位置"算出光标起点和步长
+    if 'x1' not in g:
+        first = g.get('first', g['l'] + 16); nb = beats0 - (pk0 if i == 0 else 0)
+        g['d'] = (g['r'] - first) / max(1, nb * 2); g['x1'] = first - (pk0 * 2 * g['d'] if i == 0 else 0); g['_pk'] = True
+def sc(v): return v * K
+for s in geo['systems']:
+    for k in ('y0', 'y1', 't', 'b'): s[k] = int(round(sc(s[k])))
+for g in geo['measures']:
+    for k in ('l', 'r', 'x1', 'd'): g[k] = sc(g[k])
+geo['crop'] = [int(sc(geo['crop'][0])), min(im.width, int(sc(geo['crop'][1])))]
+for key in ('labels', 'lyricRows', 'jianpuRows'):
+    for R in song.get(key, []):
+        for k in ('x', 'y', 'w', 'h'):
+            if k in R: R[k] = int(round(sc(R[k])))
 
 # ---------- 校验 ----------
 errs, warns = [], []
@@ -82,11 +104,11 @@ for s in geo['systems']:
     buf = io.BytesIO(); q.save(buf, 'PNG', optimize=True)
     SYS.append({'h': c.height, 'top': max(0, s['t'] - 10 - s['y0']),
                 'src': 'data:image/png;base64,' + base64.b64encode(buf.getvalue()).decode()})
-MEAS = [{'s': g['s'], 'l': g['l'] - X0, 'r': g['r'] - X0, 'x1': round(g['x1'] - X0, 1), 'd': g['d']} for g in G]
+MEAS = [{'s': g['s'], 'l': round(g['l'] - X0, 1), 'r': round(g['r'] - X0, 1), 'x1': round(g['x1'] - X0, 1), 'd': round(g['d'], 2)} for g in G]
 for m in M: m.pop('n', None)
 # 起拍小节：检测到的首个记号其实在休止之后，把起点往左推回去，光标才对得上
 pk = song.get('pickupRest', 0)
-if pk and MEAS: MEAS[0]['x1'] = round(MEAS[0]['x1'] - pk * 2 * MEAS[0]['d'], 1)
+if pk and MEAS and not G[0].get('_pk'): MEAS[0]['x1'] = round(MEAS[0]['x1'] - pk * 2 * MEAS[0]['d'], 1)
 
 # 谱面文字标签：原图坐标 -> 所在谱面条内的坐标
 for L in song.get('labels', []):
@@ -104,5 +126,6 @@ for key, val in (('/*SYS*/', json.dumps(SYS)), ('/*MEAS*/', json.dumps(MEAS)), (
                  ('/*SONG*/', json.dumps(song, ensure_ascii=False).replace('</', '<\\/'))):
     assert t.count(key) == 1, key
     t = t.replace(key, val)
-open(A.out, 'w', encoding='utf-8').write(t)
-print(f'已生成 {A.out}（{len(t) // 1024} KB，{len(SYS)} 行谱，{len(M)} 小节）')
+open(A.html, 'w', encoding='utf-8').write(t)
+print(f'已生成 {A.html}（{len(t) // 1024} KB，{len(SYS)} 行谱，{len(M)} 小节）')
+print('第 6 步完成。下一步: python scripts/check.py', A.html)

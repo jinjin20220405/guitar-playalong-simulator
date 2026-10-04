@@ -1,3 +1,53 @@
+# 数据格式参考
+
+一般情况下只需要填 `work/song.txt`（SKILL.md 第 4 步），其余文件都由脚本生成。本文件供需要手工调整时查阅。
+
+## 〇、song.txt（给人填的简表）
+
+~~~
+title: 曲名
+credits: 某某 唱 | 某某 编 | 选调 C
+bpm: 70
+beats: 2
+key: C
+pickup_rest: 1
+capo: 0
+pattern: 0:B 0.75:3 1:1 1.5:2 1.75:3
+chords:
+1 (9个小节 [0]-[8]): C C C G G G7 G7 C C
+2 (8个小节 [9]-[16]): F - Em Am7 Dm7 G C F/E
+sections:
+前奏: 0-16
+主歌: 17-30
+sequence: 0-8, 9-23, 24-32, 9-23, 33-60
+overrides:
+15: roll
+40: 0:B 0.5:3 1:1,2
+shape Bm7: x24232
+~~~
+
+| 项 | 含义 |
+|---|---|
+| `beats` | 每小节拍数 |
+| `key` | 简谱 "1=" 后面的调名（C、D、Eb、F# 等），决定旋律音高 |
+| `pickup_rest` | 弱起：第一个小节开头空了几拍；没有弱起填 0 |
+| `pattern` | 主要拨弦型，每项是 `拍位:弦`。`B` = 低音弦（按和弦自动选，谱上能认出时用谱上的那根），数字 = 第几弦，同时拨多根用逗号，指定品位写 `2=3`（2 弦 3 品） |
+| `chords` | 每行谱一行；个数必须等于该行小节数；`-` 沿用前一个；`F/E` 表示前后各半小节 |
+| `sections` | 循环按钮：`名称: 起-止`（小节下标，含两端） |
+| `sequence` | 全曲演奏顺序，逗号分开的若干 `起-止` 段，用来表达反复和房子 |
+| `overrides` | 个别小节的伴奏：写法同 pattern，或 `roll`（琶音）、`rest`（不弹） |
+| `shape` | 补充内置表里没有的和弦指型：6 弦到 1 弦的品位，`x` 不弹 |
+
+`make_song.py` 把它展开成下面的 song.json，并把 `geometry.json` 里自动找到的简谱行、歌词行位置一并写进去。
+
+## geometry.json（由 detect.py 生成）
+
+坐标是 `det.png` 上的像素。`systems[i]`：`y0`、`y1` 该行谱的上下边；`t`、`b` 六线谱的上下两条线；`bars` 小节线的 x 坐标（从小到大，首尾是该行的左右端）；`jianpu` 简谱识别带 `{y,h}`；`lyrics` 各歌词行 `{y,h}`。`measures[n]`：`s` 所在行、`l`、`r` 左右小节线、`first` 第一个音的 x 坐标（光标起点）。需要手工改的通常只有 `bars`，改完用 `detect.py --keep-bars` 重算其余内容。
+
+---
+
+以下是 song.json 的完整说明。
+
 # song.json 格式与读谱规则
 
 转录前通读一遍。格式样板见 `examples/demo.song.json`。
