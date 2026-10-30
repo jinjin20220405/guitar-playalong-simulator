@@ -6,4 +6,5 @@ work/
 *.png
 !docs/*.png
 *.html
-!guitar-playalong-simulator/assets/template.html
+!guitar-playalong-simulator/template/player.html
+!guitar-playalong-simulator/examples/*.html

@@ -1,0 +1,131 @@
+{
+  "format": "guitar-score",
+  "version": 1,
+  "meta": {
+    "title": "测试小曲",
+    "source": "自编测试谱，无出处，仅用于验证播放器功能",
+    "transcriber": "Claude，2026年10月29日",
+    "kind": "selftest"
+  },
+  "tuning": {"6": "E2", "5": "A2", "4": "D3", "3": "G3", "2": "B3", "1": "E4"},
+  "capo": 0,
+  "key": "C",
+  "tempo": [{"bar": 1, "bpm": 84}, {"bar": 10, "bpm": 72}],
+  "parts": [
+    {"id": "g1", "name": "吉他 I（伴奏）", "kind": "guitar"},
+    {"id": "g2", "name": "吉他 II（主音）", "kind": "guitar"},
+    {"id": "vox", "name": "旋律", "kind": "melody"}
+  ],
+  "shapes": {
+    "C":  {"name": "C",  "frets": {"6": "x", "5": 3, "4": 2, "3": 0, "2": 1, "1": 0}},
+    "Am": {"name": "Am", "frets": {"6": "x", "5": 0, "4": 2, "3": 2, "2": 1, "1": 0}},
+    "F":  {"name": "F",  "frets": {"6": 1, "5": 3, "4": 3, "3": 2, "2": 1, "1": 1}},
+    "G":  {"name": "G",  "frets": {"6": 3, "5": 2, "4": 0, "3": 0, "2": 0, "1": 3}},
+    "Em": {"name": "Em", "frets": {"6": 0, "5": 2, "4": 2, "3": 0, "2": 0, "1": 0}},
+    "Dm": {"name": "Dm", "frets": {"6": "x", "5": "x", "4": 0, "3": 2, "2": 3, "1": 1}},
+    "G7": {"name": "G7", "frets": {"6": 3, "5": 2, "4": 0, "3": 0, "2": 0, "1": 1}}
+  },
+  "bars": [
+    {
+      "n": 1, "time": "4/4", "partial": "1/4", "status": "confirmed",
+      "voices": {
+        "vox": [{"dur": "1/8", "jp": "5,"}, {"dur": "1/8", "jp": "6,"}]
+      }
+    },
+    {
+      "n": 2, "repeatStart": true, "status": "confirmed",
+      "chords": [{"pos": "0", "shape": "C"}],
+      "voices": {
+        "g1": [{"dur": "1/8", "shape": [5]}, {"dur": "1/8", "shape": [3]}, {"dur": "1/8", "shape": [2]}, {"dur": "1/8", "shape": [3]},
+               {"pos": "1/2", "dur": "1/8", "shape": [1]}, {"dur": "1/8", "shape": [3]}, {"dur": "1/8", "shape": [2]}, {"dur": "1/8", "shape": [3]}],
+        "vox": [{"dur": "1/4", "jp": "1", "lyric": "风"}, {"dur": "1/8", "jp": "3", "lyric": "吹"}, {"dur": "1/8", "jp": "5", "lyric": "过"},
+                {"dur": "1/4", "jp": "6", "lyric": "山"}, {"dur": "1/4", "jp": "5", "lyric": "岗"}]
+      }
+    },
+    {
+      "n": 3, "status": "confirmed",
+      "chords": [{"pos": "0", "shape": "Am"}],
+      "voices": {
+        "g1": [{"dur": "1/8", "shape": [5]}, {"dur": "1/8", "shape": [3]}, {"dur": "1/8", "shape": [2]}, {"dur": "1/8", "shape": [3]},
+               {"dur": "1/8", "shape": [1]}, {"dur": "1/8", "shape": [3]}, {"dur": "1/8", "shape": [2]}, {"dur": "1/8", "shape": [3]}],
+        "vox": [{"dur": "3/8", "jp": "3", "lyric": "云"}, {"dur": "1/8", "jp": "2", "lyric": "在"}, {"dur": "1/2", "jp": "1", "lyric": "走"}]
+      }
+    },
+    {
+      "n": 4, "status": "confirmed",
+      "chords": [{"pos": "0", "shape": "F"}, {"pos": "1/2", "shape": "G"}],
+      "voices": {
+        "g1": [{"dur": "1/4", "strum": "down"}, {"dur": "1/8", "strum": "down", "mute": true}, {"dur": "1/8", "strum": "up", "strings": [3, 2, 1]},
+               {"dur": "1/8", "strum": "down"}, {"dur": "1/16", "strum": "up", "strings": [3, 2, 1]}, {"dur": "1/16", "strum": "up", "strings": [3, 2, 1]},
+               {"dur": "1/4", "strum": "down", "accent": true}],
+        "vox": [{"dur": "1/4", "jp": "6"}, {"dur": "1/4", "jp": "5"}, {"dur": "1/4", "jp": "4"}, {"dur": "1/4", "jp": "2"}]
+      }
+    },
+    {
+      "n": 5, "ending": [1], "repeatEnd": 2, "status": "confirmed",
+      "chords": [{"pos": "0", "shape": "C"}],
+      "voices": {
+        "g1": [{"dur": "1/4", "strum": "down"}, {"dur": "1/4", "rest": true}, {"dur": "1/8", "strum": "down"}, {"dur": "1/8", "strum": "up", "strings": [3, 2, 1]},
+               {"dur": "1/4", "strum": "down"}],
+        "vox": [{"dur": "1/2", "jp": "1"}, {"dur": "1/4", "rest": true}, {"dur": "1/8", "jp": "5,"}, {"dur": "1/8", "jp": "6,"}]
+      }
+    },
+    {
+      "n": 6, "ending": [2], "status": "confirmed",
+      "chords": [{"pos": "0", "shape": "C"}],
+      "voices": {
+        "g1": [{"dur": "1/2", "strum": "down"}, {"dur": "1/4", "strum": "down"}, {"dur": "1/8", "strum": "up", "strings": [3, 2, 1]}, {"dur": "1/8", "strum": "up", "strings": [3, 2, 1]}],
+        "vox": [{"dur": "1/2", "jp": "1"}, {"dur": "1/4", "rest": true}, {"dur": "1/8", "jp": "5"}, {"dur": "1/8", "jp": "6"}]
+      }
+    },
+    {
+      "n": 7, "time": "3/4", "status": "confirmed",
+      "chords": [{"pos": "0", "shape": "Em"}],
+      "voices": {
+        "g1": [{"dur": "1/4", "shape": [6]}, {"dur": "1/4", "shape": [3, 2, 1]}, {"dur": "1/4", "shape": [3, 2, 1]}],
+        "vox": [{"dur": "1/12", "jp": "5"}, {"dur": "1/12", "jp": "6"}, {"dur": "1/12", "jp": "5"}, {"dur": "1/4", "jp": "3"}, {"dur": "1/4", "jp": "2"}]
+      }
+    },
+    {
+      "n": 8, "status": "confirmed",
+      "chords": [{"pos": "0", "shape": "Dm"}],
+      "voices": {
+        "g1": [{"dur": "1/4", "shape": [4]}, {"dur": "1/4", "shape": [3, 2, 1]}, {"dur": "1/4", "shape": [3, 2, 1]}],
+        "vox": [{"dur": "1/2", "jp": "2"}, {"dur": "1/4", "jp": "3"}]
+      }
+    },
+    {
+      "n": 9, "time": "2/4", "status": "confirmed",
+      "chords": [{"pos": "0", "shape": "G7"}],
+      "voices": {
+        "g1": [{"dur": "1/8", "strum": "down"}, {"dur": "1/8", "strum": "up", "strings": [3, 2, 1]}, {"dur": "1/8", "strum": "down", "mute": true}, {"dur": "1/8", "strum": "up", "strings": [3, 2, 1]}],
+        "vox": [{"dur": "1/4", "jp": "3", "tie": true}, {"dur": "1/4", "rest": true}]
+      }
+    },
+    {
+      "n": 10, "time": "4/4", "status": "confirmed",
+      "chords": [{"pos": "0", "shape": "C"}],
+      "voices": {
+        "g1": [{"dur": "1/2", "shape": [5, 3, 2, 1]}, {"dur": "1/2", "rest": true}],
+        "g2": [{"dur": "1/16", "notes": [{"s": 2, "f": 1}]}, {"dur": "1/16", "notes": [{"s": 2, "f": 3}]}, {"dur": "1/16", "notes": [{"s": 1, "f": 0}]}, {"dur": "1/16", "notes": [{"s": 1, "f": 1}]},
+               {"dur": "1/4", "notes": [{"s": 1, "f": 3}]}, {"dur": "1/4", "notes": [{"s": 1, "f": 1, "tech": "p"}]}, {"dur": "1/8", "notes": [{"s": 1, "f": 0}]}, {"dur": "1/8", "notes": [{"s": 1, "f": 0, "tie": true}]}]
+      }
+    },
+    {
+      "n": 11, "status": "confirmed",
+      "chords": [{"pos": "0", "shape": "C"}],
+      "voices": {
+        "g1": [{"dur": "1", "strum": "down", "vel": 0.7}],
+        "g2": [{"dur": "1", "notes": [{"s": 2, "f": 1}, {"s": 1, "f": 0}]}],
+        "vox": [{"dur": "1", "jp": "1"}]
+      }
+    }
+  ],
+  "playOrder": null,
+  "sections": [{"name": "开头（第1小节）", "from": 1, "to": 1}, {"name": "反复段第1遍", "from": 2, "to": 5}, {"name": "反复段第2遍", "from": 2, "to": 4, "pass": 2}, {"name": "后段（第6–11小节）", "from": 6, "to": 11}],
+  "assumptions": ["本谱为自编测试谱，无原图，不存在转录假设"],
+  "issues": [
+    {"id": "Q0", "bar": 10, "part": "g2", "where": "第10小节吉他II第6个音", "desc": "演示用疑点：此处技巧标记 p（勾弦）本版只记录、不演奏", "candidates": ["按普通音演奏"], "adopted": "按普通音演奏", "level": "minor", "status": "resolved"}
+  ],
+  "edits": []
+}
