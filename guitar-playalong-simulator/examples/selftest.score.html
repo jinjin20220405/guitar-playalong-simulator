@@ -182,7 +182,7 @@ ul.plain{margin:4px 0 12px;padding-left:1.3em}
     <div id="lyrBody">
       <div class="lyrin"><textarea id="lyLines" spellcheck="false" data-i18n-ph="lyPaste"></textarea><button class="btn" id="lyFill" type="button" data-i18n="lyFill"></button></div>
       <table class="lyrtab"><thead><tr><th data-i18n="lyThBar"></th><th data-i18n="lyThOrig"></th><th data-i18n="lyThTr"></th></tr></thead><tbody id="lyRows"></tbody></table>
-      <div class="lyract"><button class="btn sm" id="lySave" type="button" data-i18n="lySave" hidden></button><button class="btn sm" id="lyDown" type="button" data-i18n="lyDown"></button><button class="btn sm" id="lyFileBtn" type="button" data-i18n="lyFile"></button><input type="file" id="lyFile" accept=".json,application/json" hidden><button class="btn sm" id="lyClr" type="button" data-i18n="lyClr"></button><button class="btn sm" id="lyClrAll" type="button" data-i18n="lyClrAll"></button></div>
+      <div class="lyract"><button class="btn sm" id="lyDown" type="button" data-i18n="lyDown"></button><button class="btn sm" id="lyFileBtn" type="button" data-i18n="lyFile"></button><input type="file" id="lyFile" accept=".json,application/json" hidden><button class="btn sm" id="lyClr" type="button" data-i18n="lyClr"></button><button class="btn sm" id="lyClrAll" type="button" data-i18n="lyClrAll"></button></div>
       <p id="lyMsg" role="status"></p>
     </div>
     <p class="note" id="lyNone" hidden data-i18n="lyNone"></p>
@@ -835,31 +835,13 @@ $('lyFill').addEventListener('click',()=>{
   lines.slice(0,LYP.list.length).forEach((ln,i)=>{ cur[LYP.list[i].k]=ln; });
   saveLy(); renderLyr(); lyMsg(t('lyDone',{n:Math.min(lines.length,LYP.list.length),t:LYP.list.length}));
 });
-// 保存到账号（发布为 Claude Artifact 并开通相应权限时可用）与下载到本地
-let capDb=null, capDl=null, uid=null;
-const lyRef=()=>capDb.doc('data/users/'+uid+'/lyrics');
-async function saveRemote(quiet){
-  try{ await lyRef().set({json:JSON.stringify(LY),at:Date.now()}); setDirty(false); if(!quiet) lyMsg(t('lySaved')); }
-  catch(e){ if(!quiet) lyMsg(t('lyFail')); }
-}
-async function pullRemote(){
-  try{ const r=await lyRef().get(); if(r.exists&&!lyDirty){ const o=JSON.parse(r.data().json||'{}');
-    if(o&&typeof o==='object'){ LY=o; try{ localStorage.setItem(LYKEY,JSON.stringify(LY)); }catch(e){} renderLyr(); forceLayout(); } } }catch(e){}
-}
-function updateCaps(){ $('lySave').hidden=!(capDb&&uid); $('lyDown').hidden=!(capDl||!window.claude); }
-if(window.claude&&window.claude.use){
-  window.claude.use('downloads').then(x=>{ capDl=x; updateCaps(); }).catch(()=>{});
-  Promise.all([window.claude.use('db'),window.claude.use('user')]).then(async([d,u])=>{ capDb=d; uid=u?await u.id():null; updateCaps(); if(capDb&&uid) pullRemote(); }).catch(()=>{});
-}
-updateCaps();
-$('lySave').addEventListener('click',()=>saveRemote(false));
-$('lyDown').addEventListener('click',async()=>{
+// 译文随输入自动存进本机浏览器（localStorage）；可导出成文件、也能从文件载入
+$('lyDown').addEventListener('click',()=>{
   const name=P.title+'-lyrics.json', data=JSON.stringify(LY,null,1);
   try{
-    if(capDl) await capDl.save({filename:name,data});
-    else { const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([data],{type:'application/json'})); a.download=name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),2000); }
+    const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([data],{type:'application/json'})); a.download=name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),2000);
     lyMsg(t('lyDowned'));
-  }catch(e){ if(!e||e.code!=='declined') lyMsg(t('lyFail')); }
+  }catch(e){ lyMsg(t('lyFail')); }
 });
 $('lyFileBtn').addEventListener('click',()=>$('lyFile').click());
 $('lyFile').addEventListener('change',async e=>{
@@ -872,7 +854,7 @@ function sure(btn,fn){
   const reset=()=>{ delete btn.dataset.arm; btn.textContent=t(btn.dataset.i18n); };
   if(btn.dataset.arm){ reset(); fn(); } else { btn.dataset.arm='1'; btn.textContent=t('lySure'); setTimeout(()=>{ if(btn.dataset.arm) reset(); },3000); }
 }
-function clearLy(all){ if(all) LY={}; else delete LY[LANG]; saveLy(); renderLyr(); lyMsg(t('lyCleared')); if(capDb&&uid) saveRemote(true); }
+function clearLy(all){ if(all) LY={}; else delete LY[LANG]; saveLy(); renderLyr(); lyMsg(t('lyCleared')); }
 $('lyClr').addEventListener('click',e=>sure(e.currentTarget,()=>clearLy(false)));
 $('lyClrAll').addEventListener('click',e=>sure(e.currentTarget,()=>clearLy(true)));
 // 播放时在顶部显示当前这一句的译文

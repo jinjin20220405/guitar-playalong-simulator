@@ -6,10 +6,13 @@
   python3 gsh.py build  score.json [-i 原谱1.png -i 原谱2.png] [-o 输出.html]
   python3 gsh.py order  score.json        # 列出展开后的播放顺序
   python3 gsh.py pitchcheck score.json --part g2 [--melody vox]   # 吉他旋律与简谱逐音互校
-  python3 gsh.py crop   原谱.png 左 上 宽 高 -o 裁图.png [--ref 2000]  # 裁图放大，供逐小节识读（macOS sips）
+  python3 gsh.py crop   原谱.png 左 上 宽 高 -o 裁图.png [--ref 2000]  # 裁图并放大，供逐小节识读
   python3 gsh.py shrink 原谱.png -o 缩小.png [--width 4000]           # 缩小原谱，供嵌入播放器
+  python3 gsh.py env                                                 # 开工自检：环境、图像处理后端、模板
 
-只依赖 Python 3.8+ 标准库。数据格式见 ../references/format.md。
+只依赖 Python 3.8+ 标准库；裁图和缩图调用系统已有的图像处理工具
+（macOS 的 sips → ImageMagick → Pillow，按顺序自动挑选）。
+数据格式见 ../references/format.md。
 """
 import argparse
 import base64
@@ -731,22 +734,113 @@ def cmd_pitchcheck(args):
     return 0
 
 
-def _sips(*a):
+NO_IMAGE_TOOL = ("本机没有可用的图像处理工具。macOS 用自带的 sips；其他系统请安装 "
+                 "ImageMagick（提供 magick 命令）或 Pillow（python3 -m pip install pillow），"
+                 "也可以用系统自带的看图软件手工裁图、缩图，或在终端里用其他已有工具代劳。")
+
+_IMAGE_BACKEND = None
+
+
+def image_backend():
+    """按可用性挑选图像处理后端：sips（macOS 自带）→ ImageMagick → Pillow。
+
+    返回 (名称, 可执行文件绝对路径)；都没有时返回 ("none", None)。"""
+    global _IMAGE_BACKEND
+    if _IMAGE_BACKEND is not None:
+        return _IMAGE_BACKEND
     import shutil
+    names = ["sips"] if sys.platform == "darwin" else []
+    names.append("magick")
+    if sys.platform != "win32":
+        names.append("convert")  # Windows 上的 convert.exe 是磁盘转换工具，不是 ImageMagick
+    for n in names:
+        p = shutil.which(n)
+        if p:
+            _IMAGE_BACKEND = (n, p)
+            return _IMAGE_BACKEND
+    try:
+        import PIL.Image  # noqa: F401
+        _IMAGE_BACKEND = ("pillow", None)
+    except Exception:
+        _IMAGE_BACKEND = ("none", None)
+    return _IMAGE_BACKEND
+
+
+def _run(cmd):
     import subprocess
-    if not shutil.which("sips"):
-        raise ScoreError("找不到 sips（macOS 自带）；其他系统请用看图软件手工裁图")
-    r = subprocess.run(["sips", *map(str, a)], capture_output=True, text=True)
+    r = subprocess.run([str(c) for c in cmd], capture_output=True, text=True)
     if r.returncode:
-        raise ScoreError("sips 处理失败：" + (r.stderr or r.stdout).strip())
+        raise ScoreError("图像处理失败：" + (r.stderr or r.stdout).strip())
     return r.stdout
 
 
 def image_size(path):
-    out = _sips("-g", "pixelWidth", "-g", "pixelHeight", path)
-    w = int(re.search(r"pixelWidth: (\d+)", out).group(1))
-    h = int(re.search(r"pixelHeight: (\d+)", out).group(1))
-    return w, h
+    kind, exe = image_backend()
+    if kind == "none":
+        raise ScoreError(NO_IMAGE_TOOL)
+    if kind == "sips":
+        out = _run([exe, "-g", "pixelWidth", "-g", "pixelHeight", path])
+        return (int(re.search(r"pixelWidth: (\d+)", out).group(1)),
+                int(re.search(r"pixelHeight: (\d+)", out).group(1)))
+    if kind in ("magick", "convert"):
+        w, h = _run([exe, "identify", "-format", "%w %h", f"{path}[0]"]).split()[:2]
+        return int(w), int(h)
+    from PIL import Image
+    with Image.open(path) as im:
+        return im.size
+
+
+def _fit(im, side, only_shrink=False):
+    """等比缩放，使长边等于 side；only_shrink 时不放大。"""
+    from PIL import Image
+    w, h = im.size
+    m = max(w, h)
+    if only_shrink and m <= side:
+        return im
+    k = side / m
+    return im.resize((max(1, round(w * k)), max(1, round(h * k))), Image.LANCZOS)
+
+
+def _crop(path, x, y, w, h, out, maxside):
+    kind, exe = image_backend()
+    if kind == "sips":
+        _run([exe, "-c", h, w, "--cropOffset", y, x, path, "--out", out])
+        _run([exe, "-Z", maxside, out])
+        return
+    if kind in ("magick", "convert"):
+        _run([exe, path, "-crop", f"{w}x{h}+{x}+{y}", "+repage",
+              "-resize", f"{maxside}x{maxside}", out])
+        return
+    from PIL import Image
+    with Image.open(path) as im:
+        _fit(im.crop((x, y, x + w, y + h)), maxside).save(out)
+
+
+def _shrink(path, out, width):
+    kind, exe = image_backend()
+    if kind == "sips":
+        _run([exe, "-Z", width, path, "--out", out])
+        return
+    if kind in ("magick", "convert"):
+        _run([exe, path, "-resize", f"{width}x{width}>", out])
+        return
+    from PIL import Image
+    with Image.open(path) as im:
+        _fit(im, width, only_shrink=True).save(out)
+
+
+def cmd_env(args):
+    """开工自检：确认环境、图像处理后端、模板文件都齐备。"""
+    import platform
+    kind, exe = image_backend()
+    print(f"Python {platform.python_version()} · {platform.platform()}")
+    print(f"图像处理后端：{kind}" + (f"（{exe}）" if exe else ""))
+    print(f"播放器模板：{'有' if TEMPLATE.exists() else '缺失'} {TEMPLATE}")
+    i18n = TEMPLATE.parent / "i18n.json"
+    print(f"界面语言文字表：{'有' if i18n.exists() else '缺失'} {i18n}")
+    if kind == "none":
+        print("注意：" + NO_IMAGE_TOOL)
+    return 0
 
 
 def cmd_crop(args):
@@ -757,15 +851,14 @@ def cmd_crop(args):
     w, h = min(w, W - x), min(h, H - y)
     if w <= 0 or h <= 0:
         raise ScoreError("裁剪范围在图片之外")
-    _sips("-c", h, w, "--cropOffset", y, x, args.image, "--out", args.output)
-    _sips("-Z", args.max, args.output)
+    _crop(args.image, x, y, w, h, args.output, args.max)
     print(f"已裁出原图像素 左{x} 上{y} 宽{w} 高{h} → {args.output}")
     return 0
 
 
 def cmd_shrink(args):
     W, _ = image_size(args.image)
-    _sips("-Z", min(args.width, W), args.image, "--out", args.output)
+    _shrink(args.image, args.output, min(args.width, W))
     print(f"已生成 {args.output}（宽 {min(args.width, W)} 像素；img 坐标按此图计算）")
     return 0
 
@@ -785,21 +878,22 @@ def main(argv=None):
     pc.add_argument("score")
     pc.add_argument("--part", required=True, help="吉他声部 id，如 g2")
     pc.add_argument("--melody", default="vox", help="简谱声部 id，默认 vox")
-    cr = sub.add_parser("crop", help="裁剪并放大原谱局部（macOS）")
+    sub.add_parser("env", help="开工自检：环境、图像处理后端、模板文件")
+    cr = sub.add_parser("crop", help="裁剪并放大原谱局部")
     cr.add_argument("image")
     for k in ("x", "y", "w", "h"):
         cr.add_argument(k, type=float)
     cr.add_argument("-o", "--output", required=True)
     cr.add_argument("--ref", type=float, help="坐标所依据的图宽（例如看图时显示的宽度）；默认为原图宽")
     cr.add_argument("--max", type=int, default=1900, help="输出长边像素，默认 1900")
-    sh = sub.add_parser("shrink", help="缩小原谱供嵌入（macOS）")
+    sh = sub.add_parser("shrink", help="缩小原谱供嵌入播放器")
     sh.add_argument("image")
     sh.add_argument("-o", "--output", required=True)
     sh.add_argument("--width", type=int, default=4000)
     args = ap.parse_args(argv)
     try:
         return {"check": cmd_check, "order": cmd_order, "build": cmd_build, "pitchcheck": cmd_pitchcheck,
-                "crop": cmd_crop, "shrink": cmd_shrink}[args.cmd](args)
+                "crop": cmd_crop, "shrink": cmd_shrink, "env": cmd_env}[args.cmd](args)
     except ScoreError as e:
         print(f"错误：{e}")
         return 1

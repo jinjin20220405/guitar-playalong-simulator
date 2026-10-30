@@ -1,3 +1,5 @@
+> **WorkBuddy 用户：** 本仓库的 [`workbuddy` 分支](https://github.com/jinjin20220405/guitar-playalong-simulator/tree/workbuddy) 是本技能的 WorkBuddy 版——去掉了 Claude Artifact 专有代码、图像处理支持 Windows/Linux、新增 `gsh.py env` 自检，并附一个可直接上传安装的 zip。详见分支内的 `WORKBUDDY.md`。
+
 # Guitar Play-along Simulator (Agent Skill) 2.0
 
 **Turn a guitar score into a web page you can practise along with.**

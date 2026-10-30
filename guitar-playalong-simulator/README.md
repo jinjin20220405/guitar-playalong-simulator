@@ -4,7 +4,11 @@
 
 ## 常用命令
 
-只需要 python3（标准库），不用安装别的东西。在本文件夹里：
+只需要 python3（标准库）和系统自带的看图／处理工具，不用安装别的东西。在本文件夹里：
+
+```bash
+python3 scripts/gsh.py env    # 开工自检：环境、图像处理后端、模板是否齐备
+```
 
 ```bash
 python3 scripts/gsh.py check examples/selftest.score.json
@@ -14,11 +18,13 @@ python3 scripts/gsh.py check examples/selftest.score.json
 python3 scripts/gsh.py build examples/selftest.score.json
 ```
 
-附原谱图片时加 `-i 图片路径`（多页就写多个 `-i`）。原图太大时先缩小（macOS）：
+附原谱图片时加 `-i 图片路径`（多页就写多个 `-i`）。原图太大时先缩小：
 
 ```bash
 python3 scripts/gsh.py shrink 原谱.png -o 原谱_4000.png
 ```
+
+裁图和缩图按 sips（macOS 自带）→ ImageMagick → Pillow 的顺序自动挑工具；三者都没有时命令会报错并提示怎么办。`env` 可以查现在用的是哪一个。
 
 检查吉他旋律和简谱是否一致（能发现读错的品位）：
 
@@ -43,6 +49,12 @@ python3 tests/test_gsh.py
 - 变调夹：可另选品位，伴奏和旋律一起移调，旁边显示实际发音的调。
 - 每个声部可以单独静音、独奏、调音量。
 - 界面语言：右上角选择，共九种。
-- “歌词译文”页：按句输入或整段粘贴译文，显示在谱面歌词下方，播放时顶部显示当前一句。
-- 速度、音量、静音、节拍器、预备拍、变调夹、语言会记在本机浏览器里，下次打开自动恢复。
+- “歌词译文”页：按句输入或整段粘贴译文，显示在谱面歌词下方，播放时顶部显示当前一句；可导出成 JSON 文件，也能从文件载入。
+- 速度、音量、静音、节拍器、预备拍、变调夹、语言会记在本机浏览器里，下次打开自动恢复；换设备不同步。
 - “导出”页可以把内嵌的工程数据存成 JSON，供修订后重新生成。
+
+## 在 WorkBuddy 里
+
+装在用户技能目录，解压 zip 到该目录下即可（macOS/Linux `~/.workbuddy/skills/`，Windows `%USERPROFILE%\.workbuddy\skills\`），最终路径是 `skills/guitar-playalong-simulator/`。给出吉他谱并要求“跟弹”“做成能播放的网页”等，会自动调用本技能。
+
+生成的 HTML 是自包含的单文件，可直接双击打开；在 WorkBuddy 里会用预览面板打开。要分享给别人时，可以用「发布为应用」技能发布成在线链接。

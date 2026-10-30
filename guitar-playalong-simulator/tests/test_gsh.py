@@ -286,5 +286,36 @@ class Display(unittest.TestCase):
         self.assertIn("G", payload["shapes"])
 
 
+class ImageTools(unittest.TestCase):
+    """裁图缩图的后端选择与开工自检。真出图需要图片文件，这里只测选择逻辑与自检命令。"""
+
+    def test_backend_is_known(self):
+        kind, exe = gsh.image_backend()
+        self.assertIn(kind, ("sips", "magick", "convert", "pillow", "none"))
+        if kind in ("sips", "magick", "convert"):
+            self.assertTrue(exe)
+
+    def test_env_command_runs(self):
+        import argparse
+        import io
+        import contextlib
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            rc = gsh.cmd_env(argparse.Namespace())
+        self.assertEqual(rc, 0)
+        out = buf.getvalue()
+        self.assertIn("图像处理后端", out)
+        self.assertIn("播放器模板：有", out)
+
+    def test_fit_only_shrinks_when_asked(self):
+        try:
+            from PIL import Image
+        except ImportError:
+            self.skipTest("未安装 Pillow")
+        im = Image.new("RGB", (400, 200))
+        self.assertEqual(gsh._fit(im, 800, only_shrink=True).size, (400, 200))  # 不放大
+        self.assertEqual(gsh._fit(im, 100).size, (100, 50))                     # 按比例缩
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)
