@@ -175,6 +175,20 @@ class Repeats(unittest.TestCase):
         o = self.order([mbar(1), mbar(2), mbar(3), mbar(4)], playOrder=[[1, 3], [2, 2], [4, 4]])
         self.assertEqual(o, [(1, 1), (2, 1), (3, 1), (2, 2), (4, 1)])
 
+    def test_pickup_bar_zero(self):
+        pick = {"n": 0, "time": "4/4", "partial": "1/4", "voices": {"v": [{"dur": "1/4", "jp": "5"}]}}
+        b1 = mbar(1)
+        del b1["time"]
+        o = self.order([pick, b1, mbar(2, repeatStart=True), mbar(3, repeatEnd=2)])
+        self.assertEqual([b for b, _ in o], [0, 1, 2, 3, 2, 3])
+
+    def test_bar_zero_needs_partial(self):
+        b0 = mbar(1)
+        b0["n"] = 0
+        s = simple_score([b0, mbar(2)])
+        payload, rep = gsh.compile_score(s)
+        self.assertIn("小节号应为 1", "\n".join(rep.errors))
+
     def test_first_ending_without_repeat_end(self):
         s = simple_score([mbar(1), mbar(2, ending=[1]), mbar(3)])
         payload, rep = gsh.compile_score(s)

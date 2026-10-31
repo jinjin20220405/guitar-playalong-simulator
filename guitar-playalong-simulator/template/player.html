@@ -1018,8 +1018,8 @@ if(Number.isFinite(PREF.rate)) setRate(PREF.rate);
 setCapo(Number.isInteger(PREF.capo)?PREF.capo:(P.capo||0));
 /* ---------------- 自定播放顺序：分段（字母）+ 顺序串，如 ABCBD ----------------
    只存在本机浏览器里；按下“恢复原谱顺序”即回到数据里的播放顺序（含反复记号）。 */
-const ORD_KEY='gsh-order:'+P.title, NB=Object.keys(BARS).length, LETTERS='ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-let ORD={segs:[{from:1,to:NB}],seq:'A',on:false};
+const ORD_KEY='gsh-order:'+P.title, B0=Math.min(...Object.keys(BARS).map(Number)), NB=Math.max(...Object.keys(BARS).map(Number)), LETTERS='ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+let ORD={segs:[{from:B0,to:NB}],seq:'A',on:false};
 try{ const o=JSON.parse(localStorage.getItem(ORD_KEY)||'null'); if(o&&Array.isArray(o.segs)&&o.segs.length) ORD=o; }catch(e){}
 function saveOrd(){ try{ localStorage.setItem(ORD_KEY,JSON.stringify(ORD)); }catch(e){} }
 const ordMsg=(x,bad)=>{ $('ordMsg').textContent=x; $('ordMsg').classList.toggle('bad',!!bad); };
@@ -1028,7 +1028,7 @@ function renderOrder(){
   ORD.segs.forEach((g,i)=>{ const tr=document.createElement('tr');
     tr.innerHTML='<td></td><td><input type="number" min="1"></td><td><input type="number" min="1"></td><td></td>';
     tr.children[0].textContent=LETTERS[i];
-    const [a,b]=tr.querySelectorAll('input'); a.max=b.max=NB; a.value=g.from; b.value=g.to;
+    const [a,b]=tr.querySelectorAll('input'); a.min=b.min=B0; a.max=b.max=NB; a.value=g.from; b.value=g.to;
     a.setAttribute('aria-label',LETTERS[i]+' '+t('orderFrom')); b.setAttribute('aria-label',LETTERS[i]+' '+t('orderTo'));
     a.addEventListener('change',()=>{ g.from=parseInt(a.value,10); saveOrd(); });
     b.addEventListener('change',()=>{ g.to=parseInt(b.value,10); saveOrd(); });
@@ -1043,7 +1043,7 @@ function renderOrder(){
 // 按分段和顺序串生成播放序列；出错时返回 {err}
 function buildOrder(){
   for(let i=0;i<ORD.segs.length;i++){ const g=ORD.segs[i];
-    if(!(Number.isInteger(g.from)&&Number.isInteger(g.to)&&g.from>=1&&g.to<=NB&&g.from<=g.to)) return {err:t('orderBadBar',{s:LETTERS[i],n:NB})}; }
+    if(!(Number.isInteger(g.from)&&Number.isInteger(g.to)&&g.from>=B0&&g.to<=NB&&g.from<=g.to)) return {err:t('orderBadBar',{s:LETTERS[i],a:B0,n:NB})}; }
   const order=(ORD.seq||'').toUpperCase().replace(/[^A-Z]/g,'');
   if(!order) return {err:t('orderEmpty')};
   for(const c of order) if(LETTERS.indexOf(c)>=ORD.segs.length) return {err:t('orderBadLetter',{c})};

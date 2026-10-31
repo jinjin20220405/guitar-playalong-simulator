@@ -14,6 +14,7 @@ Give an AI agent an image or PDF of a guitar score (six-line tablature + numbere
 - **Multiple verses of lyrics**: when two or three lines of lyrics are printed under the same notes, the data can hold each verse; the page stacks them and shows the verse matching the current pass of a repeat.
 - Lyric translation lines now also break after held notes, one sung line per row.
 - 2.1.1: the tabs now sit in the fixed top bar and stay clickable while playing; everyday controls fit on one row, and range, capo and volumes fold into "More controls" to leave more room for the score.
+- 2.1.2: an unnumbered pickup (anacrusis) bar can be stored as bar 0, so every later bar keeps the number printed on the score; the play-order tab accepts bar 0 too.
 - New reading rule: **the chord name is the general case; the fingering drawn in the diagram and the frets written in the tab are the specific case, and the specific case wins**. Every chord diagram is read string by string instead of assuming the common fingering.
 
 ## What changed in 2.0

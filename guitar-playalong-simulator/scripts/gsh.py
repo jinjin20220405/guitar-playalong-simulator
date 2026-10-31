@@ -173,24 +173,29 @@ def compile_score(score):
             rep.err(f"tempo[{i}]", f"应为 {{\"bar\": 小节号, \"bpm\": 20–300}}，实际为 {t!r}")
             continue
         tempo[t["bar"]] = float(bpm)
-    if 1 not in tempo:
+    # 弱起小节：原谱不编号时可写 n=0（须写 partial），其后从第 1 小节起
+    bars0 = score.get("bars") or []
+    first = 0 if bars0 and isinstance(bars0[0], dict) and bars0[0].get("n") == 0 and bars0[0].get("partial") else 1
+    if first not in tempo and 1 in tempo:
+        tempo[first] = tempo[1]
+    if first not in tempo:
         rep.err("tempo", "第 1 小节必须有速度")
-        tempo.setdefault(1, 80.0)
+        tempo.setdefault(first, 80.0)
 
     # 小节
     bars = score.get("bars") or []
     if not bars:
         rep.err("bars", "没有小节")
     cbars = {}
-    time_sig, cur_shape, cur_bpm = None, None, tempo.get(1, 80.0)
+    time_sig, cur_shape, cur_bpm = None, None, tempo.get(first, 80.0)
     bar_abs = Fraction(0)  # 本小节在谱面顺序中的绝对起点，用于跨小节延音线
     last_note = {pid: {} for pid in part_kind}  # 声部 → 弦号或 "m" → (事件, 绝对结束位置)
     for bi, bar in enumerate(bars):
         n = bar.get("n")
         here = f"第{n}小节"
-        if n != bi + 1:
-            rep.err(f"bars[{bi}]", f"小节号应为 {bi + 1}（连续编号），实际为 {n!r}")
-            n = bi + 1
+        if n != bi + first:
+            rep.err(f"bars[{bi}]", f"小节号应为 {bi + first}（连续编号），实际为 {n!r}")
+            n = bi + first
             here = f"第{n}小节"
         if n in tempo:
             cur_bpm = tempo[n]
@@ -458,16 +463,16 @@ def compile_score(score):
 
 def expand_order(score, cbars, rep):
     """返回 [(小节号, 第几遍)]。playOrder 优先，否则按反复记号展开。"""
-    nbars = len(cbars)
-    if not nbars:
+    if not cbars:
         return []
+    first, nbars = min(cbars), max(cbars)
     po = score.get("playOrder")
     if po:
         out, count = [], {}
         for i, seg in enumerate(po):
             if not (isinstance(seg, list) and len(seg) == 2 and all(isinstance(x, int) for x in seg)
-                    and 1 <= seg[0] <= seg[1] <= nbars):
-                rep.err(f"playOrder[{i}]", f"应为 [起始小节, 结束小节]，且在 1–{nbars} 之内，实际为 {seg!r}")
+                    and first <= seg[0] <= seg[1] <= nbars):
+                rep.err(f"playOrder[{i}]", f"应为 [起始小节, 结束小节]，且在 {first}–{nbars} 之内，实际为 {seg!r}")
                 return []
             for n in range(seg[0], seg[1] + 1):
                 count[n] = count.get(n, 0) + 1
@@ -476,7 +481,7 @@ def expand_order(score, cbars, rep):
 
     # 先检查反复记号是否配对
     open_at = None
-    for n in range(1, nbars + 1):
+    for n in range(first, nbars + 1):
         b = cbars[n]
         if b["repeatStart"]:
             if open_at is not None and not any(cbars[k]["repeatEnd"] for k in range(open_at, n)):
@@ -484,12 +489,12 @@ def expand_order(score, cbars, rep):
             open_at = n
         if b["repeatEnd"]:
             open_at = None
-    endings = [n for n in range(1, nbars + 1) if cbars[n]["ending"]]
+    endings = [n for n in range(first, nbars + 1) if cbars[n]["ending"]]
     for n in endings:
         if not any(cbars[k]["repeatEnd"] for k in range(n, nbars + 1)) and 1 in cbars[n]["ending"]:
             rep.err(f"第{n}小节", "第一房后面没有反复结束记号")
 
-    out, i, start, passes, count = [], 1, 1, {}, {}
+    out, i, start, passes, count = [], first, first, {}, {}
     while i <= nbars:
         if len(out) > MAX_EXPANDED:
             rep.err("反复结构", f"展开后超过 {MAX_EXPANDED} 个小节，反复记号可能有误")
