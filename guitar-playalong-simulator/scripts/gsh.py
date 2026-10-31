@@ -93,6 +93,15 @@ def parse_time(sig):
 
 # ---------------------------------------------------------------- 校验与编译
 
+def lyric_list(ev):
+    """lyric 可写一个字，也可写列表（多段歌词，第 n 项为第 n 段，没有的写空串）。统一返回列表或 None。"""
+    v = ev.get("lyric")
+    if isinstance(v, list):
+        out = ["" if x is None else str(x) for x in v]
+        return out if any(out) else None
+    return [str(v)] if v else None
+
+
 def compile_score(score):
     """校验整份数据，并编译成播放器用的结构。返回 (compiled, report)。"""
     rep = Report()
@@ -280,8 +289,8 @@ def compile_score(score):
                     dv["frets"] = {str(s): fr[s] for s in dv["strings"]}
                 elif k in ("jp", "pitch"):
                     dv["lab"] = str(ev[k])
-                    if ev.get("lyric"):
-                        dv["ly"] = str(ev["lyric"])
+                    if lyric_list(ev):
+                        dv["ly"] = lyric_list(ev)
                 bar_disp.append(dv)
                 if kind == "melody" and k in ("notes", "shape", "strum"):
                     rep.err(w, "旋律声部只能用 jp、pitch 或 rest")
@@ -304,8 +313,8 @@ def compile_score(score):
                             ln["m"] = (prev, end + d)
                     else:
                         e = {"part": pid, "o": pos, "d": d, "t": "m", "midi": midi, "v": vel, "lab": str(ev[k])}
-                        if ev.get("lyric"):
-                            e["ly"] = str(ev["lyric"])
+                        if lyric_list(ev):
+                            e["ly"] = lyric_list(ev)
                         bar_events.append(e)
                         ln["m"] = (e, bar_abs + pos + d)
                 elif k == "notes":

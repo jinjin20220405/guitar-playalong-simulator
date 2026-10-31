@@ -54,7 +54,7 @@ nav{display:flex;gap:4px;padding:8px 16px 0;flex-wrap:wrap}
 nav button{border:1px solid var(--line);border-bottom:none;background:transparent;border-radius:6px 6px 0 0;padding:4px 14px}
 nav button[aria-selected="true"]{background:var(--panel);font-weight:600}
 main{background:var(--panel);margin:0 16px 24px;border:1px solid var(--line);border-radius:0 8px 8px 8px;padding:12px;min-height:50vh}
-.pane[hidden]{display:none}
+.pane[hidden],.row[hidden]{display:none}
 .tabs{display:block;overflow-x:hidden}
 .srow{display:flex;align-items:flex-start;margin:0 0 6px;flex-wrap:nowrap;gap:0}
 .bar{position:relative;cursor:pointer}
@@ -111,6 +111,12 @@ main{background:var(--panel);margin:0 16px 24px;border:1px solid var(--line);bor
 .lyrtab input{width:100%;min-width:10em;background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:2px 4px}
 .lyract{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 4px}
 #lyMsg{color:var(--acc);font-weight:600;min-height:1.2em}
+.ordtab{width:auto}
+.ordtab input{width:6em;background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:2px 4px}
+.ordrow{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:10px 0}
+#ordSeq{width:16em;font:15px/1.4 ui-monospace,Consolas,monospace;letter-spacing:.1em;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:3px 6px;text-transform:uppercase}
+#ordMsg{color:var(--acc);font-weight:600;min-height:1.2em}
+#ordMsg.bad{color:var(--warn)}
 table{border-collapse:collapse;width:100%;font-size:13px}
 th,td{border:1px solid var(--line);padding:4px 6px;text-align:left;vertical-align:top}
 th{background:var(--bg)}
@@ -125,6 +131,7 @@ ul.plain{margin:4px 0 12px;padding-left:1.3em}
   <div class="top">
     <h1 id="title"></h1>
     <span id="badge" class="badge"></span>
+    <span id="ordNow" class="badge ok" hidden></span>
     <span class="info" id="info"></span>
     <label class="info"><span data-i18n="lang"></span> <select id="lang"></select></label>
   </div>
@@ -133,6 +140,7 @@ ul.plain{margin:4px 0 12px;padding-left:1.3em}
     <button class="btn main" id="play" type="button"></button>
     <button class="btn" id="stop" type="button" data-i18n="stop" data-i18n-title="stopT"></button>
     <button class="btn" id="restart" type="button" data-i18n="restart" data-i18n-title="restartT"></button>
+    <button class="btn" id="loopAll" type="button" aria-pressed="false" data-i18n="loopAll"></button>
     <span class="where" id="where"></span>
     <span class="prog"><input type="range" id="prog" min="0" max="1" step="0.01" value="0" data-i18n-aria="progress"><span class="info" id="clock"></span></span>
   </div>
@@ -163,6 +171,7 @@ ul.plain{margin:4px 0 12px;padding-left:1.3em}
   <button role="tab" aria-selected="true" data-pane="tab" data-i18n="tabTab"></button>
   <button role="tab" aria-selected="false" data-pane="orig" data-i18n="tabOrig"></button>
   <button role="tab" aria-selected="false" data-pane="issues" data-i18n="tabIssues"></button>
+  <button role="tab" aria-selected="false" data-pane="order" data-i18n="tabOrder"></button>
   <button role="tab" aria-selected="false" data-pane="lyr" data-i18n="tabLyr"></button>
   <button role="tab" aria-selected="false" data-pane="export" data-i18n="tabExport"></button>
 </nav>
@@ -177,6 +186,15 @@ ul.plain{margin:4px 0 12px;padding-left:1.3em}
     <div id="sheets"></div>
   </section>
   <section class="pane" id="pane-issues" hidden></section>
+  <section class="pane" id="pane-order" hidden>
+    <p class="legend" data-i18n="orderHint"></p>
+    <table class="ordtab"><thead><tr><th data-i18n="orderSeg"></th><th data-i18n="orderFrom"></th><th data-i18n="orderTo"></th><th></th></tr></thead><tbody id="ordRows"></tbody></table>
+    <div class="ordrow"><button class="btn sm" id="ordAdd" type="button" data-i18n="orderAdd"></button></div>
+    <div class="ordrow"><label><span data-i18n="orderSeq"></span> <input type="text" id="ordSeq" spellcheck="false" autocomplete="off" data-i18n-ph="orderPh"></label>
+      <button class="btn main" id="ordApply" type="button" data-i18n="orderApply"></button>
+      <button class="btn" id="ordReset" type="button" data-i18n="orderReset"></button></div>
+    <p id="ordMsg" role="status"></p>
+  </section>
   <section class="pane" id="pane-lyr" hidden>
     <p class="legend" data-i18n="lyHint"></p>
     <div id="lyrBody">
@@ -196,7 +214,8 @@ ul.plain{margin:4px 0 12px;padding-left:1.3em}
 <script>
 "use strict";
 const DATA=/*__SCORE_DATA__*/null;
-const P=DATA.play, SEQ=P.seq, BARS=P.bars, PARTS=P.parts, TOTAL=P.total;
+const P=DATA.play, BARS=P.bars, PARTS=P.parts, SEQ0=P.seq, TOTAL0=P.total;
+let SEQ=SEQ0, TOTAL=TOTAL0;   // 自定播放顺序时整体替换
 const $=id=>document.getElementById(id);
 /* ---------------- 界面语言：文字表在 i18n.json，由脚本嵌入 ---------------- */
 const I18N=/*__I18N__*/null;
@@ -213,7 +232,11 @@ function guessLang(){
 // 顶部控制区固定在屏幕上时才要让开它的高度（窄屏不固定）
 const headH=()=>{ const h=document.querySelector('header'); return getComputedStyle(h).position==='sticky'?h.offsetHeight:0; };
 const fmtT=s=>{s=Math.max(0,s);const m=Math.floor(s/60),x=Math.floor(s%60);return m+':'+String(x).padStart(2,'0');};
-const repeated=new Set(); { const c={}; SEQ.forEach(s=>{c[s.bar]=(c[s.bar]||0)+1; if(c[s.bar]>1) repeated.add(s.bar);}); }
+let repeated=new Set();
+function calcRepeated(){ repeated=new Set(); const c={}; SEQ.forEach(s=>{c[s.bar]=(c[s.bar]||0)+1; if(c[s.bar]>1) repeated.add(s.bar);}); }
+calcRepeated();
+// 段落按钮的位置始终按原谱顺序计
+const repeated0=new Set(repeated), posName0=i=>{const s=SEQ0[i];return t('bar',{n:s.bar})+(repeated0.has(s.bar)?t('pass',{p:s.pass}):'');};
 const posName=i=>{const s=SEQ[i];return t('bar',{n:s.bar})+(repeated.has(s.bar)?t('pass',{p:s.pass}):'');};
 
 /* ---------------- 头部信息 ---------------- */
@@ -435,19 +458,23 @@ function buildSelOpts(){
 buildSelOpts(); $('selB').value=SEQ.length-1;
 function readSel(){ let a=+$('selA').value, b=+$('selB').value; if(a>b){ [a,b]=[b,a]; $('selA').value=a; $('selB').value=b; } st.a=a; st.b=b; }
 function setUseSel(on){
-  st.useSel=on; $('useSel').setAttribute('aria-pressed',String(on)); markRange(); markChips();
+  st.useSel=on; $('useSel').setAttribute('aria-pressed',String(on)); markRange(); markChips(); markLoop();
   if(on){ const p=curPos(); if(p<rangeStart()-1e-9 || p>=rangeEnd()) { if(st.playing) seek(rangeStart()); else st.pos=rangeStart(); } }
   render();
 }
 $('selA').addEventListener('change',()=>{ readSel(); if(st.useSel) setUseSel(true); });
 $('selB').addEventListener('change',()=>{ readSel(); if(st.useSel) setUseSel(true); });
 $('useSel').addEventListener('click',()=>{ readSel(); setUseSel(!st.useSel); });
-$('loop').addEventListener('click',e=>{ st.loop=!st.loop; e.currentTarget.setAttribute('aria-pressed',String(st.loop));
-  if(st.loop && st.playing && st.endAt!==null){ st.endAt=null; st.prev={T:st.anchorT,P:st.anchorP,r:st.rate}; st.anchorT=timeAt(rangeEnd()); st.anchorP=rangeStart(); st.schedP=st.anchorP; } });
+function setLoop(on){ st.loop=on; markLoop();
+  if(st.loop && st.playing && st.endAt!==null){ st.endAt=null; st.prev={T:st.anchorT,P:st.anchorP,r:st.rate}; st.anchorT=timeAt(rangeEnd()); st.anchorP=rangeStart(); st.schedP=st.anchorP; } }
+function markLoop(){ $('loop').setAttribute('aria-pressed',String(st.loop)); $('loopAll').setAttribute('aria-pressed',String(st.loop&&!st.useSel)); }
+$('loop').addEventListener('click',()=>setLoop(!st.loop));
+// 全曲循环：取消选段并循环整首（按当前播放顺序）
+$('loopAll').addEventListener('click',()=>{ if(st.loop&&!st.useSel){ setLoop(false); return; } if(st.useSel) setUseSel(false); setLoop(true); });
 
 /* ---------------- 段落按钮：选中这一段并循环 ---------------- */
 const SECTIONS=P.sections||[], chipEls=[];
-function markChips(){ if(!chipEls.length) return; SECTIONS.forEach((s,i)=>chipEls[i+1].setAttribute('aria-pressed',String(st.useSel&&st.a===s.a&&st.b===s.b)));
+function markChips(){ if(!chipEls.length) return; $('chips').hidden=SEQ!==SEQ0; SECTIONS.forEach((s,i)=>chipEls[i+1].setAttribute('aria-pressed',String(st.useSel&&st.a===s.a&&st.b===s.b)));
   if(chipEls[0]) chipEls[0].setAttribute('aria-pressed',String(!st.useSel)); }
 if(SECTIONS.length){
   $('chips').hidden=false;
@@ -455,14 +482,14 @@ if(SECTIONS.length){
     b.addEventListener('click',()=>{
       if(!i){ setUseSel(false); return; }
       $('selA').value=s.a; $('selB').value=s.b; readSel();
-      if(!st.loop) $('loop').click();
+      if(!st.loop) setLoop(true);
       setUseSel(true); if(st.playing) seek(rangeStart()); else { st.pos=rangeStart(); render(); }
     });
     $('chips').appendChild(b); chipEls.push(b); });
   markChips();
 }
 function labelChips(){ chipEls.forEach((b,i)=>{ if(!i){ b.textContent=t('all'); return; } const s=SECTIONS[i-1];
-  b.textContent=secName(s.name); b.title=t('secRange',{a:posName(s.a),b:posName(s.b)}); }); }
+  b.textContent=secName(s.name); b.title=t('secRange',{a:posName0(s.a),b:posName0(s.b)}); }); }
 
 /* ---------------- 声部混音 ---------------- */
 const mixState={}; PARTS.forEach(p=>{ const s=(PREF.mix||{})[p.id]||{};
@@ -491,25 +518,36 @@ function applyMix(){
 $('master').addEventListener('input',()=>{ applyMix(); savePref(); });
 
 /* ---------------- 歌词译文：使用者自己填，按界面语言分别存 ----------------
-   乐句 = 有歌词的旋律声部里，被八分以上的休止或无旋律的小节隔开的一串字。
+   乐句 = 有歌词的旋律声部里，被八分以上的休止、无旋律的小节或拖长的字隔开的一串字。
    译文按乐句首字的位置（小节:拍位）存，与排版无关。 */
 const oKey=o=>Math.round(o*960);
 const LYP=(()=>{
   const mp=PARTS.find(p=>p.kind==='melody'&&Object.values(BARS).some(b=>b.dv.some(e=>e.part===p.id&&e.ly)));
-  const out={part:mp?mp.id:null,list:[],at:{}}; if(!mp) return out;
-  let cur=null;
-  Object.keys(BARS).map(Number).sort((a,b)=>a-b).forEach(n=>{
-    const evs=BARS[n].dv.filter(e=>e.part===mp.id).sort((a,b)=>a.o-b.o);
-    if(!evs.length) cur=null;
-    evs.forEach(e=>{
-      if(e.k==='rest'){ if(e.d>=1/8-1e-6) cur=null; return; }
-      if(!e.ly) return;
-      if(!cur){ cur={k:n+':'+oKey(e.o),n,o:e.o,text:''}; out.list.push(cur); out.at[cur.k]=cur; }
-      cur.text+=e.ly;
+  const out={part:mp?mp.id:null,nv:1,list:[],at:{}}; if(!mp) return out;
+  const ns=Object.keys(BARS).map(Number).sort((a,b)=>a-b);
+  ns.forEach(n=>BARS[n].dv.forEach(e=>{ if(e.part===mp.id&&e.ly) out.nv=Math.max(out.nv,e.ly.length); }));
+  // 多段歌词：第 v 段的乐句分别划分；第 1 段沿用原来的键名
+  for(let v=0;v<out.nv;v++){
+    let cur=null;
+    ns.forEach(n=>{
+      const bar=BARS[n], evs=bar.dv.filter(e=>e.part===mp.id).sort((a,b)=>a.o-b.o);
+      if(!evs.length) cur=null;
+      evs.forEach(e=>{
+        if(e.k==='rest'){ if(e.d>=1/8-1e-6) cur=null; return; }
+        const w=e.ly&&e.ly[v]; if(!w) return;
+        if(!cur){ cur={k:n+':'+oKey(e.o)+(v?':v'+(v+1):''),n,o:e.o,v,text:''}; out.list.push(cur); out.at[cur.k]=cur; }
+        cur.text+=w;
+        if(e.d>=1/2-1e-6) cur=null;   // 拖到二分音符以上的字收句
+      });
     });
-  });
+  }
+  // 按演唱顺序排列：第 v 段取该小节第 v+1 遍出现的位置
+  const at=(n,v)=>{ let i=SEQ.findIndex(s=>s.bar===n&&s.pass===v+1); if(i<0) i=SEQ.findIndex(s=>s.bar===n); return i; };
+  out.list.forEach(x=>x.seq=at(x.n,x.v));
+  out.list.sort((a,b)=>a.seq-b.seq||a.o-b.o||a.v-b.v);
   return out;
 })();
+const lyKey=(n,o,v)=>n+':'+oKey(o)+(v?':v'+(v+1):'');
 const LYKEY='gsh-lyrics:'+P.title;
 let LY={}; try{ LY=JSON.parse(localStorage.getItem(LYKEY)||'{}')||{}; }catch(e){}
 const trOf=k=>(LY[LANG]||{})[k]||'';
@@ -560,7 +598,7 @@ function rowMetrics(bars){
   let y=m.chords?60:16;
   PARTS.forEach(p=>{ if(!bars.some(b=>b.dv.some(e=>e.part===p.id))) return;
     if(p.kind==='guitar'){ m.parts.push({p,top:y+6}); y+=6+5*SP+34; }
-    else { m.parts.push({p,top:y+4}); y+=(p.id===LYP.part&&hasTr()?72:56); } });
+    else { m.parts.push({p,top:y+4}); const lyp=p.id===LYP.part; y+=56+(lyp?(LYP.nv-1)*15+(hasTr()?LYP.nv*15+2:0):0); } });
   m.h=y; return m;
 }
 function drawBar(bar,w,M){
@@ -664,9 +702,9 @@ function drawJianpu(g,bar,items,top,w,X){
       for(let k=0;k<up;k++) g.appendChild(el('circle',{cx:x,cy:yd-15-k*4,r:1.4,fill:'currentColor'}));
       lines[i]={x,dn};
       if(e.tie){ const px=i>0?X(items[i-1].o):-6; g.appendChild(el('path',{d:`M${px} ${yd-14} Q${(px+x)/2} ${yd-22} ${x} ${yd-14}`,class:'tie'})); }
-      if(e.ly) g.appendChild(el('text',{x:x,y:top+46,'text-anchor':'middle',class:'ly'},e.ly));
-      const ph=e.part===LYP.part&&LYP.at[bar.n+':'+oKey(e.o)], tr=ph&&trOf(ph.k);
-      if(tr) g.appendChild(el('text',{x:x-6,y:top+63,class:'tr'},tr));
+      if(e.ly) e.ly.forEach((w,v)=>{ if(w) g.appendChild(el('text',{x:x,y:top+46+v*15,'text-anchor':'middle',class:'ly'},w)); });
+      if(e.part===LYP.part) for(let v=0;v<LYP.nv;v++){ const ph=LYP.at[lyKey(bar.n,e.o,v)], tr=ph&&trOf(ph.k);
+        if(tr) g.appendChild(el('text',{x:x-6,y:top+48+(LYP.nv-1)*15+15+v*15,class:'tr'},tr)); }
     }
     if(dotted(e.d)) g.appendChild(el('circle',{cx:x+7,cy:yd-4,r:1.4,fill:'currentColor'}));
     for(let k=1;k<Math.floor(e.d*4+EPS);k++) g.appendChild(el('text',{x:X(e.o+k/4),y:yd,'text-anchor':'middle',class:'jp'},'–'));
@@ -824,7 +862,7 @@ function renderLyr(){
   const tb=$('lyRows'); tb.textContent='';
   LYP.list.forEach(ph=>{ const tr=document.createElement('tr');
     tr.innerHTML='<td></td><td></td><td><input type="text"></td>';
-    tr.children[0].textContent=ph.n; tr.children[1].textContent=ph.text;
+    tr.children[0].textContent=ph.n+(LYP.nv>1?' ['+(ph.v+1)+']':''); tr.children[1].textContent=ph.text;
     const inp=tr.querySelector('input'); inp.value=trOf(ph.k); inp.setAttribute('aria-label',ph.text);
     inp.addEventListener('input',()=>{ const v=inp.value.replace(/\s+/g,' ').trim(); LY[LANG]=LY[LANG]||{};
       if(v) LY[LANG][ph.k]=v; else delete LY[LANG][ph.k]; saveLy(); });
@@ -877,9 +915,14 @@ $('lyClr').addEventListener('click',e=>sure(e.currentTarget,()=>clearLy(false)))
 $('lyClrAll').addEventListener('click',e=>sure(e.currentTarget,()=>clearLy(true)));
 // 播放时在顶部显示当前这一句的译文
 let lyNowK=null;
-function showLyNow(n,off){
+function showLyNow(n,off,pass){
   if(!hasTr()){ if(lyNowK!==null){ $('lyNow').hidden=true; lyNowK=null; } return; }
-  let ph=null; for(const x of LYP.list){ if(x.n<n||(x.n===n&&x.o<=off+1e-6)) ph=x; else break; }
+  // 第几遍就看第几段；该段在这里之前没有歌词时退回第 1 段
+  const before=x=>x.n<n||(x.n===n&&x.o<=off+1e-6);
+  let ph=null;
+  for(const v of [Math.min((pass||1)-1,LYP.nv-1),0]){
+    for(const x of LYP.list) if(x.v===v&&before(x)&&(!ph||x.n>ph.n||(x.n===ph.n&&x.o>ph.o))) ph=x;
+    if(ph) break; }
   const k=ph?ph.k:'';
   if(k===lyNowK) return; lyNowK=k;
   const tr=ph?trOf(ph.k):''; $('lyNow').hidden=!tr; $('lyNow').textContent=tr?ph.text+' — '+tr:'';
@@ -925,7 +968,7 @@ function render(){
   const [x0,x1]=barW[curBar], frac=Math.max(0,Math.min(1,(p-s.t)/s.dur)), ph=phEls[curBar], x=x0+frac*(x1-x0);
   ph.setAttribute('x1',x); ph.setAttribute('x2',x); ph.setAttribute('visibility',p>=s.t?'visible':'hidden');
   showOrig(curBar,frac,p>=s.t);
-  showLyNow(curBar,frac*BARS[curBar].len);
+  showLyNow(curBar,frac*BARS[curBar].len,s.pass);
 }
 function frame(){ if(!st.playing) return; tick(); render(); st.raf=requestAnimationFrame(frame); }
 
@@ -965,6 +1008,63 @@ if(typeof PREF.metro==='boolean') $('metro').checked=PREF.metro;
 if(typeof PREF.countin==='boolean') $('countin').checked=PREF.countin;
 if(Number.isFinite(PREF.rate)) setRate(PREF.rate);
 setCapo(Number.isInteger(PREF.capo)?PREF.capo:(P.capo||0));
+/* ---------------- 自定播放顺序：分段（字母）+ 顺序串，如 ABCBD ----------------
+   只存在本机浏览器里；按下“恢复原谱顺序”即回到数据里的播放顺序（含反复记号）。 */
+const ORD_KEY='gsh-order:'+P.title, NB=Object.keys(BARS).length, LETTERS='ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+let ORD={segs:[{from:1,to:NB}],seq:'A',on:false};
+try{ const o=JSON.parse(localStorage.getItem(ORD_KEY)||'null'); if(o&&Array.isArray(o.segs)&&o.segs.length) ORD=o; }catch(e){}
+function saveOrd(){ try{ localStorage.setItem(ORD_KEY,JSON.stringify(ORD)); }catch(e){} }
+const ordMsg=(x,bad)=>{ $('ordMsg').textContent=x; $('ordMsg').classList.toggle('bad',!!bad); };
+function renderOrder(){
+  const tb=$('ordRows'); tb.textContent='';
+  ORD.segs.forEach((g,i)=>{ const tr=document.createElement('tr');
+    tr.innerHTML='<td></td><td><input type="number" min="1"></td><td><input type="number" min="1"></td><td></td>';
+    tr.children[0].textContent=LETTERS[i];
+    const [a,b]=tr.querySelectorAll('input'); a.max=b.max=NB; a.value=g.from; b.value=g.to;
+    a.setAttribute('aria-label',LETTERS[i]+' '+t('orderFrom')); b.setAttribute('aria-label',LETTERS[i]+' '+t('orderTo'));
+    a.addEventListener('change',()=>{ g.from=parseInt(a.value,10); saveOrd(); });
+    b.addEventListener('change',()=>{ g.to=parseInt(b.value,10); saveOrd(); });
+    if(ORD.segs.length>1){ const d=document.createElement('button'); d.type='button'; d.className='btn sm'; d.textContent=t('orderDel');
+      d.addEventListener('click',()=>{ ORD.segs.splice(i,1); saveOrd(); renderOrder(); }); tr.children[3].appendChild(d); }
+    tb.appendChild(tr); });
+  $('ordAdd').hidden=ORD.segs.length>=LETTERS.length;
+  $('ordSeq').value=ORD.seq||'';
+  const custom=SEQ!==SEQ0; $('ordNow').hidden=!custom; $('ordNow').textContent=custom?t('orderNow',{o:ORD.applied}):'';
+  if(!$('ordMsg').textContent) ordMsg(custom?t('orderNow',{o:ORD.applied}):t('orderDefault'));
+}
+// 按分段和顺序串生成播放序列；出错时返回 {err}
+function buildOrder(){
+  for(let i=0;i<ORD.segs.length;i++){ const g=ORD.segs[i];
+    if(!(Number.isInteger(g.from)&&Number.isInteger(g.to)&&g.from>=1&&g.to<=NB&&g.from<=g.to)) return {err:t('orderBadBar',{s:LETTERS[i],n:NB})}; }
+  const order=(ORD.seq||'').toUpperCase().replace(/[^A-Z]/g,'');
+  if(!order) return {err:t('orderEmpty')};
+  for(const c of order) if(LETTERS.indexOf(c)>=ORD.segs.length) return {err:t('orderBadLetter',{c})};
+  const seq=[], cnt={}; let tt=0;
+  for(const c of order){ const g=ORD.segs[LETTERS.indexOf(c)];
+    for(let n=g.from;n<=g.to;n++){ const b=BARS[n], dur=b.len*240/b.bpm; cnt[n]=(cnt[n]||0)+1;
+      seq.push({bar:n,pass:cnt[n],t:tt,dur}); tt+=dur; } }
+  return {order,seq,total:tt};
+}
+function useSeq(seq,total){
+  if(st.playing) halt();
+  SEQ=seq; TOTAL=total; calcRepeated();
+  $('prog').max=TOTAL; st.useSel=false; st.a=0; st.b=SEQ.length-1; st.pos=0;
+  $('useSel').setAttribute('aria-pressed','false'); buildSelOpts(); $('selA').value=0; $('selB').value=SEQ.length-1;
+  markRange(); markChips(); markLoop(); renderHead(); lyNowK=null; render();
+}
+$('ordAdd').addEventListener('click',()=>{ const last=ORD.segs[ORD.segs.length-1];
+  const from=Math.min(NB,(last?last.to:0)+1); ORD.segs.push({from,to:NB}); saveOrd(); renderOrder(); });
+$('ordSeq').addEventListener('input',e=>{ ORD.seq=e.target.value.toUpperCase().replace(/[^A-Z]/g,''); saveOrd(); });
+$('ordApply').addEventListener('click',()=>{
+  ORD.seq=$('ordSeq').value.toUpperCase().replace(/[^A-Z]/g,'');
+  const r=buildOrder(); if(r.err){ ordMsg(r.err,true); return; }
+  ORD.seq=ORD.applied=r.order; ORD.on=true; saveOrd(); useSeq(r.seq,r.total); renderOrder();
+  ordMsg(t('orderApplied',{o:r.order,n:r.seq.length,t:fmtT(r.total)}));
+});
+$('ordReset').addEventListener('click',()=>{ ORD.on=false; saveOrd(); useSeq(SEQ0,TOTAL0); renderOrder(); ordMsg(t('orderResetDone')); });
+if(ORD.on){ const typed=ORD.seq; ORD.seq=ORD.applied||typed; const r=buildOrder();
+  if(!r.err){ ORD.applied=r.order; useSeq(r.seq,r.total); } else { ORD.on=false; saveOrd(); } ORD.seq=typed; }
+
 /* ---------------- 切换界面语言 ---------------- */
 for(const k in I18N){ const o=document.createElement('option'); o.value=k; o.textContent=I18N[k].name; $('lang').appendChild(o); }
 function setLang(l){
@@ -979,11 +1079,12 @@ function setLang(l){
   $('origNote').textContent=t(origNoteKey());
   $('play').textContent=t(st.playing?'pause':'play');
   renderHead(); buildCapoOpts(); showKey(); showRate(); buildSelOpts(); labelChips(); renderIssues(); renderLyr();
+  $('ordMsg').textContent=''; renderOrder();
   lyNowK=null; forceLayout(); savePref();
 }
 $('lang').addEventListener('change',e=>setLang(e.target.value));
 // 供自动化测试读取内部状态
-window.__player={st,SEQ,BARS,live,play,pause,stop,restart,seek,setRate,setCapo,setUseSel,stepBar,curPos,OROWS,setLang,LYP,get LY(){return LY;},get SHIFT(){return SHIFT;},get ctx(){return ctx;}};
+window.__player={st,get SEQ(){return SEQ;},get TOTAL(){return TOTAL;},BARS,live,play,pause,stop,restart,seek,setRate,setCapo,setUseSel,stepBar,curPos,OROWS,setLang,LYP,get LY(){return LY;},get SHIFT(){return SHIFT;},get ctx(){return ctx;}};
 setLang(LANG);
 </script>
 </body>

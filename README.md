@@ -1,4 +1,4 @@
-# Guitar Play-along Simulator (Agent Skill) 2.0
+# Guitar Play-along Simulator (Agent Skill) 2.1
 
 **Turn a guitar score into a web page you can practise along with.**
 Give an AI agent an image or PDF of a guitar score (six-line tablature + numbered notation / jianpu). This skill walks it through transcribing the score bar by bar into project data, then a script builds a single self-contained HTML file: the accompaniment and the melody sound together while a cursor follows the beat.
@@ -6,6 +6,14 @@ Give an AI agent an image or PDF of a guitar score (six-line tablature + numbere
 [简体中文说明](README.zh-CN.md)
 
 ![A generated player](docs/player.jpg)
+
+## New in 2.1
+
+- **Loop song** button.
+- **Custom play order**: split the song into segments A, B, C … (first and last bar each) and type an order such as `ABCBD` or `ABACBCD`; the page plays in that order, range and loop follow it, and the score's own order can be restored at any time.
+- **Multiple verses of lyrics**: when two or three lines of lyrics are printed under the same notes, the data can hold each verse; the page stacks them and shows the verse matching the current pass of a repeat.
+- Lyric translation lines now also break after held notes, one sung line per row.
+- New reading rule: **the chord name is the general case; the fingering drawn in the diagram and the frets written in the tab are the specific case, and the specific case wins**. Every chord diagram is read string by string instead of assuming the common fingering.
 
 ## What changed in 2.0
 
@@ -22,7 +30,7 @@ Version 1.x showed the original image and let the page read the jianpu by itself
 - **Original tab**: the original is cut into rows by bar position and re-flowed into columns so it fits one landscape screen; the current bar is highlighted and a line moves with the beat
 - Accompaniment and melody as separate parts (plucked-string synthesis, no samples), each with mute, solo and volume
 - **Speed** 0.5–1.5× (pitch unchanged), **metronome**, **count-in**, **capo** 0–7 (transposes everything)
-- **Range loop**, one-click **section loops**, click any bar to jump, Space to play or pause, left/right arrows to move a bar; repeats are expanded automatically
+- **Range loop**, **song loop**, one-click **section loops**, a **custom play order** (e.g. ABACBCD), click any bar to jump, Space to play or pause, left/right arrows to move a bar; repeats are expanded automatically
 - **Nine interface languages**: 简体中文, 繁體中文, English, 日本語, 한국어, Español, Français, Deutsch, Português
 - **Lyric translation**: users type a translation per line or paste it whole; it appears under the lyrics and the current line is shown at the top while playing; download, load from file, clear; when published as a Claude Artifact it can also be saved to the account
 - Speed, volume, language and similar settings are remembered in the browser; light and dark themes; no network needed once generated

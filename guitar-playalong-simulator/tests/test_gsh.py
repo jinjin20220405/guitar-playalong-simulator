@@ -240,6 +240,22 @@ class Leaps(unittest.TestCase):
         self.assertEqual(self.leaps([["4", "3", "2", "3'"]], status="confirmed"), [])
 
 
+class Verses(unittest.TestCase):
+    def test_lyric_list_kept(self):
+        b = mbar(1)
+        b["voices"]["v"] = [{"dur": "1/2", "jp": "1", "lyric": ["我", "送"]}, {"dur": "1/2", "jp": "2", "lyric": "要"}]
+        payload, rep = gsh.compile_score(simple_score([b]))
+        self.assertIsNotNone(payload, rep.errors)
+        dv = [e for e in payload["bars"][1]["dv"] if e.get("ly")]
+        self.assertEqual([e["ly"] for e in dv], [["我", "送"], ["要"]])
+
+    def test_empty_list_dropped(self):
+        b = mbar(1)
+        b["voices"]["v"] = [{"dur": "1", "jp": "1", "lyric": ["", None]}]
+        payload, _ = gsh.compile_score(simple_score([b]))
+        self.assertFalse(any(e.get("ly") for e in payload["bars"][1]["dv"]))
+
+
 class Build(unittest.TestCase):
     def test_build_embeds_full_source(self):
         with tempfile.TemporaryDirectory() as d:
